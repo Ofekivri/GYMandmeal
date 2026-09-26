@@ -3,7 +3,7 @@
 // admin can read + write all of it.
 import {
   collection, doc, getDoc, getDocs, onSnapshot, setDoc, addDoc, updateDoc, deleteDoc, writeBatch,
-  query, orderBy, limit,
+  query, orderBy, limit, where,
 } from 'firebase/firestore';
 import { db } from './firebase';
 
@@ -169,5 +169,44 @@ export async function deleteLog(uid, log) {
       else batch.update(planRef, { doneAt: null, logId: null });
     }
   }
+  await batch.commit();
+}
+
+// ─── Meals: free-text meals placed on a date ───────────────────────────────
+// { date: "YYYY-MM-DD", slot, text, eatenAt, actual, createdAt, createdBy }
+// Eaten = eatenAt is set. `actual` is what was eaten instead, if different.
+
+// Only meals from sinceKey on: meals pile up ~30 a week per trainee, and
+// re-reading all of them on every open would eat the free read quota.
+export function listenMeals(uid, sinceKey, onData, onError) {
+  return onSnapshot(
+    query(collection(db, 'trainees', uid, 'meals'), where('date', '>=', sinceKey)),
+    snap => onData(snap.docs.map(d => ({ id: d.id, ...d.data() }))),
+    onError,
+  );
+}
+
+export function addMeal(uid, { date, slot, text }, editorUid) {
+  return addDoc(collection(db, 'trainees', uid, 'meals'), {
+    date, slot, text, eatenAt: null, actual: '', createdAt: Date.now(), createdBy: editorUid,
+  });
+}
+
+export function updateMeal(uid, id, fields) {
+  return updateDoc(doc(db, 'trainees', uid, 'meals', id), fields);
+}
+
+export function deleteMeal(uid, id) {
+  return deleteDoc(doc(db, 'trainees', uid, 'meals', id));
+}
+
+// Adds several meals in one write (copy a day / copy last week).
+export async function addMeals(uid, meals, editorUid) {
+  const batch = writeBatch(db);
+  meals.forEach(({ date, slot, text }, i) => {
+    batch.set(doc(collection(db, 'trainees', uid, 'meals')), {
+      date, slot, text, eatenAt: null, actual: '', createdAt: Date.now() + i, createdBy: editorUid,
+    });
+  });
   await batch.commit();
 }

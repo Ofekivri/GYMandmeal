@@ -1,16 +1,22 @@
 import { useEffect, useMemo, useState } from 'react';
-import { listenPlan, addPlanItem, addPlanItems, updatePlanItem, deletePlanItem } from './data';
-import { exercisesCount } from './hebrew';
+import { listenPlan, addPlanItem, addPlanItems, updatePlanItem, deletePlanItem, listenMeals, addMeals } from './data';
+import { exercisesCount, workoutsCount, mealsCount } from './hebrew';
+import { sortMeals, sameMeal, mealSuggestions } from './meals';
+import DayMeals from './DayMeals';
 import { todayKey, addDays, weekStart, weekDays, fromKey, shortDate, dayLabel, DAY_LETTERS } from './dates';
 
 const MISSED_LOOKBACK_DAYS = 14;
+const MEALS_WINDOW_DAYS = 120;
 
-// Week strip planner. Workouts are placed on dates by hand — by the trainee
-// or the admin. A past, unfinished workout counts as missed and can be
-// moved to today in one tap.
+// Week strip planner and day view. Workouts and meals are placed on dates by
+// hand — by the trainee or the admin — and the day view shows both, planned
+// vs. done. A past, unfinished workout counts as missed and can be moved to
+// today in one tap.
 export default function Planner({ uid, editorUid, workouts, onGoToLibrary, onStart }) {
   const today = todayKey();
   const [plan, setPlan] = useState(null); // null = loading
+  const [meals, setMeals] = useState(null); // null = loading
+  const [mealsError, setMealsError] = useState('');
   const [viewWeek, setViewWeek] = useState(() => weekStart(today));
   const [selected, setSelected] = useState(today);
   const [picking, setPicking] = useState(false);
@@ -27,6 +33,25 @@ export default function Planner({ uid, editorUid, workouts, onGoToLibrary, onSta
       setPlan([]);
     });
   }, [uid]);
+
+  useEffect(() => {
+    setMeals(null);
+    setMealsError('');
+    return listenMeals(uid, addDays(todayKey(), -MEALS_WINDOW_DAYS), setMeals, err => {
+      console.error('[meals] listen failed', err);
+      setMealsError('לא הצלחנו לטעון את הארוחות. בדקו את החיבור ונסו שוב.');
+      setMeals([]);
+    });
+  }, [uid]);
+
+  const mealsByDate = useMemo(() => {
+    const map = {};
+    for (const meal of meals || []) (map[meal.date] ||= []).push(meal);
+    for (const date of Object.keys(map)) map[date] = sortMeals(map[date]);
+    return map;
+  }, [meals]);
+
+  const suggestions = useMemo(() => mealSuggestions(meals || []), [meals]);
 
   const byDate = useMemo(() => {
     const map = {};
@@ -71,15 +96,26 @@ export default function Planner({ uid, editorUid, workouts, onGoToLibrary, onSta
     setMovingId(null);
   });
 
+  // Copies last week's workouts and meals into the viewed week, skipping
+  // anything already there.
   const copyLastWeek = () => run(async () => {
-    const source = weekDays(addDays(viewWeek, -7)).flatMap(d => byDate[d] || []);
-    if (source.length === 0) return setInfo('אין אימונים בשבוע הקודם להעתקה.');
-    const items = source
+    const prevDays = weekDays(addDays(viewWeek, -7));
+    const sourceWorkouts = prevDays.flatMap(d => byDate[d] || []);
+    const sourceMeals = prevDays.flatMap(d => mealsByDate[d] || []);
+    if (sourceWorkouts.length + sourceMeals.length === 0) return setInfo('אין אימונים או ארוחות בשבוע הקודם להעתקה.');
+    const items = sourceWorkouts
       .map(item => ({ date: addDays(item.date, 7), workoutId: item.workoutId, workoutName: item.workoutName }))
       .filter(n => !(byDate[n.date] || []).some(e => e.workoutId === n.workoutId));
-    if (items.length === 0) return setInfo('כל האימונים של השבוע הקודם כבר נמצאים בשבוע הזה.');
-    await addPlanItems(uid, items, editorUid);
-    setInfo(items.length === 1 ? 'הועתק אימון אחד.' : `הועתקו ${items.length} אימונים.`);
+    const mealCopies = sourceMeals
+      .map(m => ({ date: addDays(m.date, 7), slot: m.slot, text: m.text }))
+      .filter(n => !(mealsByDate[n.date] || []).some(e => sameMeal(e, n)));
+    if (items.length + mealCopies.length === 0) return setInfo('כל מה שהיה בשבוע הקודם כבר נמצא בשבוע הזה.');
+    await Promise.all([
+      items.length && addPlanItems(uid, items, editorUid),
+      mealCopies.length && addMeals(uid, mealCopies, editorUid),
+    ]);
+    const parts = [items.length && workoutsCount(items.length), mealCopies.length && mealsCount(mealCopies.length)].filter(Boolean);
+    setInfo(`הועתקו לשבוע הזה: ${parts.join(', ')}.`);
   });
 
   if (plan === null) return <p className="muted">טוען…</p>;
@@ -122,16 +158,21 @@ export default function Planner({ uid, editorUid, workouts, onGoToLibrary, onSta
       <div className="week-strip">
         {days.map(key => {
           const items = byDate[key] || [];
+          const dayMeals = mealsByDate[key] || [];
+          const eatenMeals = dayMeals.filter(m => m.eatenAt).length;
           return (
             <button key={key} onClick={() => selectDay(key)}
               className={`day${key === selected ? ' selected' : ''}${key === today ? ' today' : ''}`}
-              aria-label={`${dayLabel(key)}, ${items.length} אימונים`}>
+              aria-label={`${dayLabel(key)}, ${workoutsCount(items.length)}, ${mealsCount(dayMeals.length)}`}>
               <span className="day-letter">{DAY_LETTERS[fromKey(key).getDay()]}</span>
               <span className="day-num">{fromKey(key).getDate()}</span>
               <span className="dots">
                 {items.slice(0, 3).map(item => (
                   <span key={item.id} className={`dot ${item.doneAt ? 'done' : isMissed(item) ? 'missed' : ''}`} />
                 ))}
+              </span>
+              <span className={`meal-count${dayMeals.length && eatenMeals === dayMeals.length ? ' all' : ''}`}>
+                {dayMeals.length > 0 ? `${eatenMeals}/${dayMeals.length}` : ''}
               </span>
             </button>
           );
@@ -140,6 +181,7 @@ export default function Planner({ uid, editorUid, workouts, onGoToLibrary, onSta
 
       <div style={{ marginTop: 16 }}>
         <h2 style={{ fontSize: 18, margin: '0 0 10px' }}>{dayLabel(selected)}</h2>
+        <h3 className="section-title">אימונים</h3>
         <div className="list">
           {selectedItems.length === 0 && !picking && <p className="muted" style={{ margin: 0 }}>אין אימון מתוכנן ליום הזה.</p>}
 
@@ -203,6 +245,23 @@ export default function Planner({ uid, editorUid, workouts, onGoToLibrary, onSta
             <button className="btn btn-block btn-dashed" onClick={() => setPicking(true)}>+ הוספת אימון ליום הזה</button>
           )}
         </div>
+
+        <h3 className="section-title" style={{ marginTop: 20 }}>תזונה</h3>
+        {mealsError && <div className="error" style={{ marginBottom: 8 }}>{mealsError}</div>}
+        {meals === null ? (
+          <p className="muted">טוען…</p>
+        ) : (
+          <DayMeals
+            key={selected}
+            uid={uid}
+            editorUid={editorUid}
+            date={selected}
+            today={today}
+            meals={mealsByDate[selected] || []}
+            mealsByDate={mealsByDate}
+            suggestions={suggestions}
+          />
+        )}
       </div>
 
       <div style={{ marginTop: 20 }}>

@@ -100,3 +100,18 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .history-ex { padding: 6px 0; border-top: 1px solid var(--border); }
 .btn-small { padding: 6px 10px; font-size: 14px; }
 .toast { position: fixed; bottom: calc(16px + env(safe-area-inset-bottom)); inset-inline: 16px; max-width: 448px; margin: 0 auto; box-shadow: 0 4px 16px rgba(0,0,0,.12); z-index: 10; }
+
+.section-title { font-size: 15px; font-weight: 600; color: var(--muted); margin: 0 0 8px; }
+.meal-count { font-size: 11px; line-height: 1; min-height: 11px; color: var(--muted); }
+.meal-count.all { color: #2e7d32; font-weight: 600; }
+.day.selected .meal-count { color: #dbe7ff; }
+.card.meals { padding: 4px 16px; }
+.meal { padding: 10px 0; border-top: 1px solid var(--border); }
+.meal:first-child { border-top: none; }
+.meal-text { margin-top: 2px; }
+.meal-text.planned { color: var(--muted); text-decoration: line-through; }
+.meal-form { display: flex; flex-direction: column; gap: 8px; margin-top: 6px; }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.chip { border: 1px solid var(--border); background: var(--card); border-radius: 999px; padding: 5px 12px; font-size: 13px; cursor: pointer; color: var(--muted); }
+.chip.on { background: var(--accent-bg); border-color: var(--accent); color: #1e3a8a; font-weight: 500; }
+.badge.different { background: #fff4e5; color: #8a4b00; }
