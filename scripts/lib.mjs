@@ -10,6 +10,8 @@ import path from 'node:path';
 const ROOT = path.resolve(import.meta.dirname, '..');
 export const CRED_PATH = path.join(homedir(), '.config', 'gymandmeal', 'credentials.json');
 
+export const norm = t => String(t || '').trim().replace(/\s+/g, ' ').toLowerCase();
+
 // Same public web config the app is built with.
 export function firebaseConfig() {
   const env = readFileSync(path.join(ROOT, '.env.local'), 'utf8');
@@ -117,6 +119,46 @@ export async function getDoc(s, docPath) {
 export async function createDoc(s, collectionPath, data) {
   const d = await call(s, 'POST', `${base(s)}/${collectionPath}`, { fields: toFields(data) });
   return d.name.split('/').pop();
+}
+
+// Docs of a sub-collection (plan, meals, logs) whose `date` is in [from, to],
+// so reads don't grow with the whole history. parentPath: "trainees/UID".
+export async function listByDate(s, parentPath, collectionId, from, to) {
+  const f = (op, value) => ({ fieldFilter: { field: { fieldPath: 'date' }, op, value: toValue(value) } });
+  const rows = await call(s, 'POST', `${base(s)}/${parentPath}:runQuery`, {
+    structuredQuery: {
+      from: [{ collectionId }],
+      where: { compositeFilter: { op: 'AND', filters: [f('GREATER_THAN_OR_EQUAL', from), f('LESS_THAN_OR_EQUAL', to)] } },
+    },
+  });
+  return rows.filter(r => r.document).map(r => ({ id: r.document.name.split('/').pop(), ...fromFields(r.document.fields) }));
+}
+
+// Several writes in one atomic commit: [{ update: docPath, data }, { delete: docPath }].
+// An update fails if the doc is gone, like the SDK's updateDoc.
+export async function commit(s, writes) {
+  const name = p => `projects/${s.projectId}/databases/(default)/documents/${p}`;
+  await call(s, 'POST', `${base(s)}:commit`, {
+    writes: writes.map(w => w.delete ? { delete: name(w.delete) } : {
+      update: { name: name(w.update), fields: toFields(w.data) },
+      updateMask: { fieldPaths: Object.keys(w.data) },
+      currentDocument: { exists: true },
+    }),
+  });
+}
+
+// Signed-in session + the one trainee matching a name (or part of it) or email.
+export async function openTrainee(query) {
+  const s = await session();
+  const settings = await getDoc(s, 'config/settings');
+  if (settings?.adminEmail !== s.email) console.warn(`! ${s.email} is not the admin in config/settings; other trainees' data will be denied.`);
+  const trainees = await listDocs(s, 'trainees');
+  const q = norm(query);
+  const matches = trainees.filter(t => norm(t.email) === q || norm(t.name).includes(q));
+  if (matches.length !== 1) {
+    throw new Error(`Trainee "${query}" matched ${matches.length}: ${trainees.map(t => `${t.name} <${t.email}>`).join(', ') || '(no trainees)'}`);
+  }
+  return { s, trainee: matches[0], root: `trainees/${matches[0].id}`, trainees };
 }
 
 // Overwrites only the given fields.

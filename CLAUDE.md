@@ -58,11 +58,13 @@ A meal is eaten when `eatenAt` is set. `actual` is set when something else was e
 - Exercises are free text (no shared exercise library). The editor suggests names already used (`<datalist>`), and a name that matches one ignoring case and spaces is saved with the existing spelling.
 - All UI copy is in Hebrew. Use gender-neutral plural imperatives ("נסו שוב").
 
-## Pushing data from Claude Code (scripts/)
-Ofek describes a program in chat, and Claude writes it straight into a trainee's account (no import UI):
+## Working on trainee data from Claude Code (scripts/)
+Ofek manages trainees from chat (text, a photo or a PDF of a program), and Claude reads and writes their data directly (no import UI):
 1. One-time setup: Ofek runs `node scripts/login.mjs ofekivri8@gmail.com` himself and types his password. The password is never seen or stored. The refresh token is saved to `~/.config/gymandmeal/credentials.json` (0600, outside git).
-2. Claude writes a spec JSON to the scratchpad (format at the top of `scripts/push.mjs`: trainee, workouts, plan, meals), then runs `node scripts/push.mjs spec.json --dry-run`, shows the summary, and runs it again without `--dry-run`.
-3. Writes go through the Firestore REST API as the admin user, so the normal rules apply. Workouts are matched by name (updated if they exist). Plan items and meals are skipped if they're already there.
+2. Read: `node scripts/show.mjs` lists trainees. `node scripts/show.mjs <trainee> [from] [to]` prints the workout library plus the plan, logs (every set, effort) and meals in the range (default: this week), each with its `[id]`. Add `--json` for raw docs.
+3. Write: Claude writes a spec JSON to the scratchpad (format at the top of `scripts/push.mjs`: add workouts/plan/meals, `update` and `delete` by id), runs `node scripts/push.mjs spec.json --dry-run`, shows Ofek the summary, and then runs it for real.
+4. Deletes: always show the dry run and get Ofek's explicit OK first. The script refuses to delete without `--delete`. Deleting a workout also removes its not-done plan items from today on. Deleting a log works like History (its plan item goes back to "not done", or is removed if unplanned).
+5. Writes go through the Firestore REST API as the admin user, so the normal rules apply. Every update/delete id is checked before anything is written, and updates and deletes go in one atomic commit. Workouts are matched by name (updated if they exist). Plan items and meals are skipped if they're already there. Renaming a workout also renames its upcoming plan items. A done plan item can't be moved.
 Never commit the credentials file or print tokens.
 
 ## Service worker rollback
