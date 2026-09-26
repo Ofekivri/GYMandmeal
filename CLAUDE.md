@@ -6,6 +6,14 @@ Ofek's own ACL rehab stays in the separate ACL-Tracker repo.
 **Stack:** Vite + React 19, plain JSX, one CSS file (`src/index.css`), Firebase Auth (Google + email/password) + Firestore with an on-device cache (works offline, syncs later).
 It uses the same Firebase project as ACL-Tracker. Security rules live in that repo's `firestore.rules`.
 
+## Working with Ofek
+- Ofek is Head of Product. Claude acts as CTO: pushes back when something is risky, keeps things simple and cheap, and avoids regressions.
+- **Reply in short Hebrew.** When Ofek needs to do something (console setup, a deploy step, a phone test), say so first, briefly and explicitly. Code, commits, Linear and this file stay in English.
+- Ask clarifying questions before building anything non-trivial, using clickable options when possible.
+- Linear: team "Psytohretpy app" (issues PSY-103 and up belong to this app). Open an issue for each feature, and mark it Done when it ships.
+- Always ask first: touching `.env*` or secrets, Firestore rules (they live in the ACL-Tracker repo and are pasted into the Firebase console by Ofek), deleting data, and anything that costs money.
+- Test before pushing: a production build, plus a throwaway mock harness (fake auth and in-memory `data.js`) for UI flows at phone size. Delete the harness before committing.
+
 ## Files
 - `src/App.jsx`: auth, admin detection, trainee switcher, tabs (תכנון / אימונים), and the shared workouts listener
 - `src/data.js`: all Firestore reads and writes
