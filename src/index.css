@@ -127,3 +127,20 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .effort.on.effort-easy { background: #2e7d32; border-color: #2e7d32; color: #fff; }
 .effort.on.effort-mid { background: #d97706; border-color: #d97706; color: #fff; }
 .effort.on.effort-hard { background: var(--danger); border-color: var(--danger); color: #fff; }
+
+.badge.pr { display: inline-block; margin-top: 4px; background: #fff4e5; color: #8a4b00; }
+.badge.new { background: var(--accent); color: #fff; white-space: nowrap; }
+.pr-set { color: #8a4b00; font-weight: 600; }
+.tab-dot { display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: var(--accent); margin-inline-start: 5px; vertical-align: middle; }
+.coach-note { margin-top: 10px; background: var(--accent-bg); color: #1e3a8a; border-radius: 8px; padding: 8px 10px; font-size: 14px; }
+.coach-note-head { font-weight: 600; margin-bottom: 2px; }
+.progress-row { padding: 10px 0; border-top: 1px solid var(--border); }
+.progress-row:first-child { border-top: none; }
+
+.chart { display: block; width: 100%; height: auto; margin-top: 4px; overflow: visible; direction: ltr; }
+.chart-grid { stroke: var(--border); stroke-width: 1; }
+.chart-cross { stroke: var(--border); stroke-width: 1; stroke-dasharray: 3 3; }
+.chart-axis { fill: var(--muted); font-size: 11px; }
+.chart-line { fill: none; stroke: var(--accent); stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
+.chart-dot { fill: var(--accent); stroke: var(--card); stroke-width: 2; }
+.chart-label { fill: var(--text); font-size: 12px; font-weight: 600; }

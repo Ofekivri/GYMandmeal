@@ -2,7 +2,10 @@ import { useEffect, useState } from 'react';
 import { onAuthStateChanged, signOut } from 'firebase/auth';
 import { auth } from './firebase';
 import { fetchIsAdmin, ensureTrainee, listenTrainees, listenWorkouts, listenLogs, finishSession } from './data';
-import { buildSession, sessionToLog, loadSession, storeSession, knownExerciseNames } from './session';
+import { buildSession, sessionToLog, loadSession, storeSession, knownExerciseNames, hasNewCoachNote } from './session';
+import { newRecords } from './records';
+import { todayKey, dayLabel } from './dates';
+import { countOf } from './hebrew';
 import Login from './Login';
 import Planner from './Planner';
 import WorkoutList from './WorkoutList';
@@ -124,7 +127,9 @@ export default function App() {
 
   const finishCurrentSession = async () => {
     const finished = session;
-    const write = finishSession(finished.traineeUid, { log: sessionToLog(finished), planId: finished.planId }, user.uid);
+    const log = sessionToLog(finished);
+    const records = newRecords(log, (logs || []).filter(l => l.date <= log.date));
+    const write = finishSession(finished.traineeUid, { log, planId: finished.planId }, user.uid);
     write.catch(err => console.error('[session] background save failed', err));
     const outcome = await Promise.race([
       write.then(() => 'saved'),
@@ -135,8 +140,9 @@ export default function App() {
     storeSession(finished.traineeUid, null);
     setSession(cur => (cur?.startedAt === finished.startedAt ? null : cur));
     setTab('history');
+    const recordsNote = records.length ? ` ${countOf(records.length, 'שיא חדש אחד', 'שיאים חדשים')} 🏆` : '';
     setNotice(outcome === 'saved'
-      ? 'האימון נשמר.'
+      ? `האימון נשמר${log.date !== todayKey() ? ` ל${dayLabel(log.date)}` : ''}.${recordsNote}`
       : 'אין חיבור כרגע. האימון נשמר במכשיר ויסונכרן כשהחיבור יחזור.');
   };
 
@@ -147,6 +153,8 @@ export default function App() {
   const active = (trainees || []).find(t => t.uid === activeUid);
   const listTitle = isAdmin && activeUid !== user.uid ? `האימונים של ${active?.name || ''}` : 'האימונים שלי';
   const inSession = session && session.traineeUid === activeUid;
+  const ownAccount = activeUid === user.uid;
+  const newCoachNote = ownAccount && (logs || []).some(hasNewCoachNote);
 
   return (
     <div className="page">
@@ -181,6 +189,7 @@ export default function App() {
         <WorkoutSession
           key={session.startedAt}
           session={session}
+          logs={logs}
           onChange={updateSession}
           onFinish={finishCurrentSession}
           onDiscard={() => updateSession(null)}
@@ -191,7 +200,10 @@ export default function App() {
         <div className="tabs" role="tablist">
           {[...(isAdmin ? ADMIN_TABS : []), ...TABS].map(t => (
             <button key={t.id} role="tab" aria-selected={tab === t.id} className={tab === t.id ? 'active' : ''}
-              onClick={() => setTab(t.id)}>{t.label}</button>
+              onClick={() => setTab(t.id)}>
+              {t.label}
+              {t.id === 'history' && newCoachNote && <span className="tab-dot" role="img" aria-label="הערה חדשה" />}
+            </button>
           ))}
         </div>
       )}
@@ -229,7 +241,16 @@ export default function App() {
           onStart={w => startSession(w)}
         />
       ) : (
-        <History uid={activeUid} logs={logs} error={logsError} />
+        <History
+          uid={activeUid}
+          editorUid={user.uid}
+          logs={logs}
+          error={logsError}
+          isOwner={ownAccount}
+          canCoach={isAdmin && !ownAccount}
+          coachName={firstName}
+          knownNames={knownExerciseNames(workouts, logs)}
+        />
       ))}
 
       {notice && <div className="info toast" role="status" onClick={() => setNotice('')}>{notice}</div>}

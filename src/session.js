@@ -69,21 +69,26 @@ export function buildSession({ traineeUid, workout, planItem, logs }) {
   };
 }
 
-const toNumber = v => {
-  const n = parseFloat(String(v).replace(',', '.'));
+// "" → null, "12,5" → 12.5.
+export const toNumber = v => {
+  const n = parseFloat(String(v ?? '').replace(',', '.'));
   return Number.isFinite(n) ? n : null;
 };
 
 // Only sets marked done are saved; exercises with none are left out.
+// session.date is set when the workout is logged for a past day; that day
+// has no real start → finish time, so startedAt is left out.
 export function sessionToLog(session) {
   const finishedAt = Date.now();
+  const date = session.date || todayKey();
+  const startedAt = date === todayKey() ? session.startedAt : null;
   if (isActivity(session)) {
     return {
       kind: 'activity',
       workoutId: session.workoutId,
       workoutName: session.workoutName,
-      date: todayKey(),
-      startedAt: session.startedAt,
+      date,
+      startedAt,
       finishedAt,
       note: session.note.trim(),
       effort: session.effort,
@@ -94,8 +99,8 @@ export function sessionToLog(session) {
   return {
     workoutId: session.workoutId,
     workoutName: session.workoutName,
-    date: todayKey(),
-    startedAt: session.startedAt,
+    date,
+    startedAt,
     finishedAt,
     note: session.note.trim(),
     exercises: session.exercises
@@ -114,6 +119,9 @@ export const countDoneSets = session =>
 export const formatSet = s => (s.weight != null && s.weight !== '' ? `${s.weight}×${s.reps ?? '?'}` : `${s.reps ?? '?'}`);
 
 export const durationMinutes = (startedAt, finishedAt) => Math.round((finishedAt - startedAt) / 60000);
+
+// The admin wrote (or changed) a note the trainee hasn't opened yet.
+export const hasNewCoachNote = log => !!log.coachNote && (log.coachNoteSeenAt || 0) < (log.coachNoteAt || 0);
 
 export function loadSession(uid) {
   try {

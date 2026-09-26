@@ -1,13 +1,15 @@
 import { useState } from 'react';
-import { countDoneSets, durationMinutes, formatSet } from './session';
-import { shortDate } from './dates';
+import { countDoneSets, durationMinutes, formatSet, sessionToLog } from './session';
+import { newRecords } from './records';
+import { shortDate, todayKey } from './dates';
 import { countOf } from './hebrew';
 import { withCode } from './errors';
 
 // Doing a workout: one exercise at a time, weight × reps per set, ✓ to mark
 // a set done. Only done sets are saved. Every change goes through onChange,
-// which App persists to localStorage.
-export default function WorkoutSession({ session, onChange, onFinish, onDiscard }) {
+// which App persists to localStorage. The summary shows new personal records
+// (against logs, newest first) and can date the workout to a past day.
+export default function WorkoutSession({ session, logs, onChange, onFinish, onDiscard }) {
   const [finishing, setFinishing] = useState(false);
   const [confirmExit, setConfirmExit] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -26,8 +28,11 @@ export default function WorkoutSession({ session, onChange, onFinish, onDiscard 
   const removeSet = () => setExercise(idx, e => (e.sets.length > 1 ? { ...e, sets: e.sets.slice(0, -1) } : e));
   const goTo = i => { setError(''); onChange({ ...session, current: i }); };
 
+  const today = todayKey();
+
   const save = async () => {
     if (doneSets === 0) return setError('סמנו לפחות סט אחד כבוצע (✓) לפני השמירה.');
+    if (session.date > today) return setError('אי אפשר לרשום אימון בתאריך עתידי.');
     setError('');
     setBusy(true);
     try {
@@ -57,6 +62,8 @@ export default function WorkoutSession({ session, onChange, onFinish, onDiscard 
   }
 
   if (finishing) {
+    const log = sessionToLog(session);
+    const records = newRecords(log, (logs || []).filter(l => l.date <= log.date));
     return (
       <div>
         {header}
@@ -65,10 +72,14 @@ export default function WorkoutSession({ session, onChange, onFinish, onDiscard 
           <div className="list" style={{ gap: 6 }}>
             {session.exercises.map((e, i) => {
               const done = e.sets.filter(s => s.done).length;
+              const record = records.find(r => r.name === e.name);
               return (
-                <div key={i} className="plan-row">
-                  <span style={{ flex: 1 }}>{e.name}</span>
-                  <span className={done ? '' : 'muted'}>{done}/{e.sets.length} סטים</span>
+                <div key={i}>
+                  <div className="plan-row">
+                    <span style={{ flex: 1 }}>{e.name}</span>
+                    <span className={done ? '' : 'muted'}>{done}/{e.sets.length} סטים</span>
+                  </div>
+                  {record && <span className="badge pr">🏆 שיא חדש: <bdi dir="ltr">{formatSet(record.set)}</bdi></span>}
                 </div>
               );
             })}
@@ -77,6 +88,11 @@ export default function WorkoutSession({ session, onChange, onFinish, onDiscard 
             <label htmlFor="session-note">הערה לאימון (לא חובה)</label>
             <textarea id="session-note" className="input" rows={2} value={session.note}
               onChange={e => onChange({ ...session, note: e.target.value })} />
+          </div>
+          <div className="field" style={{ marginTop: 12 }}>
+            <label htmlFor="session-date">תאריך האימון</label>
+            <input id="session-date" type="date" className="input" max={today} value={session.date || today}
+              onChange={e => onChange({ ...session, date: e.target.value && e.target.value !== today ? e.target.value : null })} />
           </div>
         </div>
         {error && <div className="error" style={{ marginTop: 12 }}>{error}</div>}

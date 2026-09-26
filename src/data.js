@@ -118,15 +118,22 @@ export async function addPlanItems(uid, items, editorUid) {
 
 // ─── Logs: finished workouts ────────────────────────────────────────────────
 // { workoutId, workoutName, date, startedAt, finishedAt, note, planId,
-//   unplanned, loggedBy, exercises: [{ name, sets: [{ weight, reps }] }] }
+//   unplanned, loggedBy, exercises: [{ name, sets: [{ weight, reps }] }],
+//   coachNote, coachNoteAt, coachName, coachNoteSeenAt, editedAt, editedBy }
 
 const LOG_HISTORY_LIMIT = 100;
 
-// Newest first. Also feeds the "last time" numbers in a new session.
+// Newest first by the day it was done (a workout can be logged for a past
+// date, or have its date edited), then by finish time. Also feeds the "last
+// time" numbers and the personal records.
 export function listenLogs(uid, onData, onError) {
   return onSnapshot(
     query(collection(db, 'trainees', uid, 'logs'), orderBy('finishedAt', 'desc'), limit(LOG_HISTORY_LIMIT)),
-    snap => onData(snap.docs.map(d => ({ id: d.id, ...d.data() }))),
+    snap => onData(
+      snap.docs
+        .map(d => ({ id: d.id, ...d.data() }))
+        .sort((a, b) => (b.date || '').localeCompare(a.date || '') || (b.finishedAt || 0) - (a.finishedAt || 0)),
+    ),
     onError,
   );
 }
@@ -176,6 +183,30 @@ export async function deleteLog(uid, log) {
     }
   }
   await batch.commit();
+}
+
+// Edits a finished workout. A new date moves its plan item along, as
+// finishing a workout does.
+export async function updateLog(uid, log, fields, editorUid) {
+  const batch = writeBatch(db);
+  batch.update(doc(db, 'trainees', uid, 'logs', log.id), { ...fields, editedAt: Date.now(), editedBy: editorUid });
+  if (fields.date && fields.date !== log.date && log.planId) {
+    const planRef = doc(db, 'trainees', uid, 'plan', log.planId);
+    const planSnap = await getDoc(planRef);
+    if (planSnap.exists() && planSnap.data().logId === log.id) batch.update(planRef, { date: fields.date });
+  }
+  await batch.commit();
+}
+
+// The admin's note on a finished workout; an empty text removes it.
+export function saveCoachNote(uid, logId, text, coachName) {
+  return updateDoc(doc(db, 'trainees', uid, 'logs', logId), text
+    ? { coachNote: text, coachNoteAt: Date.now(), coachName }
+    : { coachNote: '', coachNoteAt: null });
+}
+
+export function markCoachNoteSeen(uid, logId) {
+  return updateDoc(doc(db, 'trainees', uid, 'logs', logId), { coachNoteSeenAt: Date.now() });
 }
 
 // ─── Meals: free-text meals placed on a date ───────────────────────────────
