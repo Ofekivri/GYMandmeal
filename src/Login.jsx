@@ -5,6 +5,7 @@ import {
 } from 'firebase/auth';
 import { auth, googleProvider } from './firebase';
 import { ensureTrainee } from './data';
+import { withCode } from './errors';
 
 const AUTH_ERRORS = {
   'auth/invalid-credential': 'האימייל או הסיסמה שגויים.',
@@ -17,8 +18,10 @@ const AUTH_ERRORS = {
   'auth/too-many-requests': 'יותר מדי ניסיונות. נסו שוב בעוד כמה דקות.',
   'auth/operation-not-allowed': 'התחברות עם אימייל לא מופעלת כרגע.',
   'auth/network-request-failed': 'אין חיבור לאינטרנט.',
+  'auth/unauthorized-domain': 'הכתובת של האתר לא מאושרת להתחברות ב-Firebase (Authorized domains).',
+  'auth/popup-blocked': 'הדפדפן חסם את חלון ההתחברות. אפשרו חלונות קופצים לאתר ונסו שוב.',
 };
-const authError = err => AUTH_ERRORS[err.code] || 'ההתחברות נכשלה. נסו שוב.';
+const authError = err => AUTH_ERRORS[err.code] || withCode('ההתחברות נכשלה. נסו שוב.', err);
 
 export default function Login() {
   const [mode, setMode] = useState('login'); // 'login' | 'signup' | 'reset'
