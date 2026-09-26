@@ -1,7 +1,10 @@
 import { useEffect, useState } from 'react';
 import { onAuthStateChanged, signOut } from 'firebase/auth';
 import { auth } from './firebase';
-import { fetchIsAdmin, ensureTrainee, listenTrainees, listenWorkouts, listenLogs, finishSession } from './data';
+import {
+  fetchIsAdmin, ensureTrainee, listenTrainee, listenTrainees, listenWorkouts, listenLogs, finishSession,
+  markAfterWorkoutMessageShown,
+} from './data';
 import { buildSession, sessionToLog, loadSession, storeSession, knownExerciseNames, hasNewCoachNote } from './session';
 import { newRecords } from './records';
 import { todayKey, dayLabel } from './dates';
@@ -14,6 +17,7 @@ import WorkoutSession from './WorkoutSession';
 import ActivitySession from './ActivitySession';
 import History from './History';
 import Overview from './Overview';
+import AfterWorkoutMessage from './AfterWorkoutMessage';
 import { withCode } from './errors';
 
 // With no signal the save stays queued in Firestore's on-device cache; stop
@@ -41,6 +45,13 @@ export default function App() {
   const [session, setSession] = useState(null); // workout in progress
   const [notice, setNotice] = useState('');
   const [error, setError] = useState('');
+  const [me, setMe] = useState(null); // the signed-in user's own trainee doc
+  const [message, setMessage] = useState(null); // one-time message on screen
+
+  useEffect(() => {
+    if (!user) return;
+    return listenTrainee(user.uid, setMe, err => console.warn('[trainee] own profile listen failed', err));
+  }, [user]);
 
   // Shared listeners for the active trainee: workouts feed the planner picker
   // and the library; logs feed history and the "last time" numbers.
@@ -125,6 +136,18 @@ export default function App() {
     updateSession(buildSession({ traineeUid: activeUid, workout, planItem, logs }));
   };
 
+  // After a workout is finished or marked done: the admin's one-time message
+  // for this user, if one is waiting. Never when the admin logs for someone.
+  const showAfterWorkoutMessage = traineeUid => {
+    if (traineeUid !== user.uid || !me?.afterWorkoutMessage || me.afterWorkoutMessageShownAt) return;
+    setMessage({ text: me.afterWorkoutMessage, from: me.afterWorkoutMessageFrom || '' });
+  };
+
+  const closeAfterWorkoutMessage = () => {
+    setMessage(null);
+    markAfterWorkoutMessageShown(user.uid).catch(err => console.error('[trainee] message mark failed', err));
+  };
+
   const finishCurrentSession = async () => {
     const finished = session;
     const log = sessionToLog(finished);
@@ -144,6 +167,7 @@ export default function App() {
     setNotice(outcome === 'saved'
       ? `האימון נשמר${log.date !== todayKey() ? ` ל${dayLabel(log.date)}` : ''}.${recordsNote}`
       : 'אין חיבור כרגע. האימון נשמר במכשיר ויסונכרן כשהחיבור יחזור.');
+    showAfterWorkoutMessage(finished.traineeUid);
   };
 
   if (user === undefined) return <div className="center muted">טוען…</div>;
@@ -231,6 +255,7 @@ export default function App() {
           workouts={workouts || []}
           onGoToLibrary={() => setTab('workouts')}
           onStart={startSession}
+          onMarkedDone={() => showAfterWorkoutMessage(activeUid)}
         />
       ) : tab === 'workouts' ? (
         <WorkoutList
@@ -255,6 +280,7 @@ export default function App() {
       ))}
 
       {notice && <div className="info toast" role="status" onClick={() => setNotice('')}>{notice}</div>}
+      {message && <AfterWorkoutMessage message={message} onClose={closeAfterWorkoutMessage} />}
     </div>
   );
 }

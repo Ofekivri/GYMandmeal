@@ -15,7 +15,7 @@ const WINDOW_DAYS = 120;
 // hand — by the trainee or the admin — and the day view shows both, planned
 // vs. done. A past, unfinished workout counts as missed and can be moved to
 // today in one tap.
-export default function Planner({ uid, editorUid, workouts, onGoToLibrary, onStart }) {
+export default function Planner({ uid, editorUid, workouts, onGoToLibrary, onStart, onMarkedDone }) {
   const today = todayKey();
   const [plan, setPlan] = useState(null); // null = loading
   const [meals, setMeals] = useState(null); // null = loading
@@ -196,7 +196,7 @@ export default function Planner({ uid, editorUid, workouts, onGoToLibrary, onSta
                 ) : (
                   <>
                     {workout && <button className="btn btn-primary" onClick={() => onStart(workout, item)}>התחלת אימון</button>}
-                    <button className="btn" onClick={() => run(() => updatePlanItem(uid, item.id, { doneAt: Date.now() }))}>סימון כבוצע</button>
+                    <button className="btn" onClick={() => { run(() => updatePlanItem(uid, item.id, { doneAt: Date.now() })); onMarkedDone?.(); }}>סימון כבוצע</button>
                     {isMissed(item) && <button className="btn" onClick={() => moveTo(item, today)}>העברה להיום</button>}
                     <button className="btn btn-ghost" onClick={() => setMovingId(movingId === item.id ? null : item.id)}>העברה ליום אחר</button>
                   </>

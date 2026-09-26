@@ -36,7 +36,7 @@ It uses the same Firebase project as ACL-Tracker. Security rules live in that re
 
 ## Data model (`trainees/{uid}`, owner or admin only)
 ```
-trainees/{uid}                 { name, email, lastSeenAt }
+trainees/{uid}                 { name, email, lastSeenAt, afterWorkoutMessage, afterWorkoutMessageFrom, afterWorkoutMessageShownAt }
 trainees/{uid}/workouts/{id}   { name, kind: strength|activity, durationMin, note, exercises: [{ name, sets, reps, weight, note, demo, video }], createdAt, updatedAt, updatedBy }
 trainees/{uid}/plan/{id}       { date: "YYYY-MM-DD", workoutId, workoutName, doneAt, logId, createdAt, createdBy }
 trainees/{uid}/meals/{id}      { date, slot: breakfast|lunch|dinner|snack, text, eatenAt, actual, createdAt, createdBy }
@@ -49,6 +49,7 @@ Finishing a workout writes the log and updates the plan item in one batch (`fini
 A workout in progress lives in localStorage (`gym_session_v1_{traineeUid}`) until it's saved or discarded. Only sets marked ✓ are saved.
 "Last time" matches exercises by normalized name across the latest 100 logs. `listenLogs` sorts them on the device by `date`, then `finishedAt`, since a log can be dated to a past day or have its date edited. A log for a past day has `startedAt: null` (no real duration). Editing a log's date moves its plan item too (`updateLog`).
 A coach note is new for the trainee while `coachNoteSeenAt < coachNoteAt`: a dot on the History tab and a badge on the log, cleared when they open it.
+`afterWorkoutMessage` is a one-time personal message from the admin, shown in a popup (`AfterWorkoutMessage.jsx`) to that trainee only, after their next workout finished or marked done on their own account. Closing it sets `afterWorkoutMessageShownAt`. There's no UI to write it; it's set from Claude Code (below).
 A meal is eaten when `eatenAt` is set. `actual` is set when something else was eaten; the plan text is kept and shown crossed out. Meals are read in a 120-day window (`listenMeals`) to keep Firestore reads under the free quota.
 `workoutName` is copied into each plan item so it still reads right after the workout is renamed or deleted.
 
@@ -78,6 +79,8 @@ Ofek manages trainees from chat (text, a photo or a PDF of a program), and Claud
 4. Deletes: always show the dry run and get Ofek's explicit OK first. The script refuses to delete without `--delete`. Deleting a workout also removes its not-done plan items from today on. Deleting a log works like History (its plan item goes back to "not done", or is removed if unplanned).
 5. Writes go through the Firestore REST API as the admin user, so the normal rules apply. Every update/delete id is checked before anything is written, and updates and deletes go in one atomic commit. Workouts are matched by name (updated if they exist). Plan items and meals are skipped if they're already there. Renaming a workout also renames its upcoming plan items. A done plan item can't be moved.
 Never commit the credentials file or print tokens.
+
+A one-time message after the next workout (e.g. "well done on your first workout"): write `afterWorkoutMessage` (text, no signature), `afterWorkoutMessageFrom` ("אופק") and `afterWorkoutMessageShownAt: null` on `trainees/{uid}` with `openTrainee` + `updateDoc` from `scripts/lib.mjs`. The text is personal, so it lives only in that trainee's doc, never in the code.
 
 ## Service worker rollback
 If `sw.js` ever misbehaves, replace its contents with the following and deploy. Phones pick it up on the next open:

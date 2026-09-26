@@ -41,6 +41,17 @@ export function listenTrainees(onData, onError) {
   );
 }
 
+// The signed-in user's own trainee doc, live. Carries a one-time message
+// from the admin (afterWorkoutMessage) to show after their next finished
+// workout; it's set per trainee from Claude Code, so only they see it.
+export function listenTrainee(uid, onData, onError) {
+  return onSnapshot(doc(db, 'trainees', uid), snap => onData(snap.exists() ? { uid, ...snap.data() } : null), onError);
+}
+
+export function markAfterWorkoutMessageShown(uid) {
+  return updateDoc(doc(db, 'trainees', uid), { afterWorkoutMessageShownAt: Date.now() });
+}
+
 // Live list of a trainee's workouts, oldest first.
 export function listenWorkouts(uid, onData, onError) {
   return onSnapshot(
