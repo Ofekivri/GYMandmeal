@@ -1,21 +1,6 @@
-import { useEffect, useState } from 'react';
-import { listenWorkouts } from './data';
-
 // The trainee's workout library. Tapping a workout opens the editor.
-export default function WorkoutList({ uid, title, onEdit, onNew }) {
-  const [workouts, setWorkouts] = useState(null); // null = loading
-  const [error, setError] = useState('');
-
-  useEffect(() => {
-    setWorkouts(null);
-    setError('');
-    return listenWorkouts(uid, setWorkouts, err => {
-      console.error('[workouts] listen failed', err);
-      setError('לא הצלחנו לטעון את האימונים. בדקו את החיבור ונסו שוב.');
-      setWorkouts([]);
-    });
-  }, [uid]);
-
+// workouts: null while loading (App owns the Firestore listener).
+export default function WorkoutList({ workouts, error, title, onEdit, onNew }) {
   return (
     <div>
       <h2 style={{ fontSize: 18, margin: '0 0 12px' }}>{title}</h2>

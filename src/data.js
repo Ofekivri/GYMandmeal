@@ -2,7 +2,7 @@
 // (see firestore.rules in the ACL-Tracker repo): the trainee owns it, the
 // admin can read + write all of it.
 import {
-  collection, doc, getDoc, getDocs, onSnapshot, setDoc, addDoc, deleteDoc,
+  collection, doc, getDoc, getDocs, onSnapshot, setDoc, addDoc, updateDoc, deleteDoc, writeBatch,
 } from 'firebase/firestore';
 import { db } from './firebase';
 
@@ -60,4 +60,51 @@ export async function saveWorkout(uid, workout, editorUid) {
 
 export function deleteWorkout(uid, id) {
   return deleteDoc(doc(db, 'trainees', uid, 'workouts', id));
+}
+
+// ─── Plan: a workout placed on a date ───────────────────────────────────────
+// { date: "YYYY-MM-DD", workoutId, workoutName, doneAt, logId, createdAt, createdBy }
+// workoutName is copied in so the plan still reads right if the workout is
+// later renamed or deleted. Done = doneAt is set (phase 3 also sets logId).
+
+// Loads the whole plan. Fine at a few workouts a week; if it grows to
+// thousands of docs, switch to a date-range query.
+export function listenPlan(uid, onData, onError) {
+  return onSnapshot(
+    collection(db, 'trainees', uid, 'plan'),
+    snap => onData(snap.docs.map(d => ({ id: d.id, ...d.data() }))),
+    onError,
+  );
+}
+
+export function addPlanItem(uid, { date, workout }, editorUid) {
+  return addDoc(collection(db, 'trainees', uid, 'plan'), {
+    date,
+    workoutId: workout.id,
+    workoutName: workout.name,
+    doneAt: null,
+    logId: null,
+    createdAt: Date.now(),
+    createdBy: editorUid,
+  });
+}
+
+export function updatePlanItem(uid, id, fields) {
+  return updateDoc(doc(db, 'trainees', uid, 'plan', id), fields);
+}
+
+export function deletePlanItem(uid, id) {
+  return deleteDoc(doc(db, 'trainees', uid, 'plan', id));
+}
+
+// Adds several plan items in one write (used by "copy last week").
+export async function addPlanItems(uid, items, editorUid) {
+  const batch = writeBatch(db);
+  for (const { date, workoutId, workoutName } of items) {
+    batch.set(doc(collection(db, 'trainees', uid, 'plan')), {
+      date, workoutId, workoutName,
+      doneAt: null, logId: null, createdAt: Date.now(), createdBy: editorUid,
+    });
+  }
+  await batch.commit();
 }

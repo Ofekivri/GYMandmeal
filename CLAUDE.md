@@ -7,18 +7,23 @@ Ofek's own ACL rehab stays in the separate ACL-Tracker repo.
 It uses the same Firebase project as ACL-Tracker. Security rules live in that repo's `firestore.rules`.
 
 ## Files
-- `src/App.jsx`: auth, admin detection, trainee switcher, screen switching
+- `src/App.jsx`: auth, admin detection, trainee switcher, tabs (תכנון / אימונים), and the shared workouts listener
 - `src/data.js`: all Firestore reads and writes
-- `src/WorkoutList.jsx`, `src/WorkoutEditor.jsx`, `src/Login.jsx`: screens
+- `src/dates.js`: local "YYYY-MM-DD" date helpers. Weeks start on Sunday. Never use `toISOString()` (it's UTC)
+- `src/Planner.jsx`: week strip, the selected day's workouts, missed workouts, copy last week
+- `src/WorkoutList.jsx`, `src/WorkoutEditor.jsx`: the workout library
+- `src/Login.jsx`: Google, plus email and password (sign up, sign in, reset password)
 
 ## Data model (`trainees/{uid}`, owner or admin only)
 ```
 trainees/{uid}                 { name, email, lastSeenAt }
 trainees/{uid}/workouts/{id}   { name, exercises: [{ name, sets, reps, weight, note }], createdAt, updatedAt, updatedBy }
-trainees/{uid}/plan/{id}       { date: "YYYY-MM-DD", workoutId, logId }          (phase 2)
+trainees/{uid}/plan/{id}       { date: "YYYY-MM-DD", workoutId, workoutName, doneAt, logId, createdAt, createdBy }
 trainees/{uid}/logs/{id}       { workoutId, workoutName, date, planId, exercises: [{ name, sets: [{ weight, reps }] }] }  (phase 3)
 ```
 Admin is `config/settings.adminEmail`, the same source the rules' `isAdmin()` reads. The admin gets no trainee doc.
+A plan item is done when `doneAt` is set (manual "סימון כבוצע" for now; phase 3's logging will also set `logId`). It's missed when its date is before today and it isn't done.
+`workoutName` is copied into each plan item so it still reads right after the workout is renamed or deleted.
 
 ## Product decisions
 - Date planner: a week strip, and workouts are placed by hand. Nothing is auto-scheduled and there's no recurrence ("copy last week" instead).

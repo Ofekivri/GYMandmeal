@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react';
 import { onAuthStateChanged, signOut } from 'firebase/auth';
 import { auth } from './firebase';
-import { fetchIsAdmin, ensureTrainee, fetchTrainees } from './data';
+import { fetchIsAdmin, ensureTrainee, fetchTrainees, listenWorkouts } from './data';
 import Login from './Login';
+import Planner from './Planner';
 import WorkoutList from './WorkoutList';
 import WorkoutEditor from './WorkoutEditor';
 
@@ -11,12 +12,28 @@ export default function App() {
   const [isAdmin, setIsAdmin] = useState(false);
   const [trainees, setTrainees] = useState([]);
   const [activeUid, setActiveUid] = useState(null); // whose workouts we're looking at
+  const [tab, setTab] = useState('plan'); // 'plan' | 'workouts'
   const [editing, setEditing] = useState(null); // null = list, {} = new, workout = edit
+  const [workouts, setWorkouts] = useState(null); // null = loading
+  const [workoutsError, setWorkoutsError] = useState('');
   const [error, setError] = useState('');
+
+  // One workouts listener, shared by the planner (picker) and the library.
+  useEffect(() => {
+    if (!activeUid) return;
+    setWorkouts(null);
+    setWorkoutsError('');
+    return listenWorkouts(activeUid, setWorkouts, err => {
+      console.error('[workouts] listen failed', err);
+      setWorkoutsError('לא הצלחנו לטעון את האימונים. בדקו את החיבור ונסו שוב.');
+      setWorkouts([]);
+    });
+  }, [activeUid]);
 
   useEffect(() => onAuthStateChanged(auth, async u => {
     setError('');
     setEditing(null);
+    setTab('plan');
     if (!u) {
       setUser(null);
       setIsAdmin(false);
@@ -79,6 +96,13 @@ export default function App() {
         </div>
       )}
 
+      {activeUid && !editing && (
+        <div className="tabs" role="tablist">
+          <button role="tab" aria-selected={tab === 'plan'} className={tab === 'plan' ? 'active' : ''} onClick={() => setTab('plan')}>תכנון</button>
+          <button role="tab" aria-selected={tab === 'workouts'} className={tab === 'workouts' ? 'active' : ''} onClick={() => setTab('workouts')}>אימונים</button>
+        </div>
+      )}
+
       {activeUid && (editing ? (
         <WorkoutEditor
           key={editing.id || 'new'}
@@ -87,9 +111,18 @@ export default function App() {
           workout={editing.id ? editing : null}
           onDone={() => setEditing(null)}
         />
+      ) : tab === 'plan' ? (
+        <Planner
+          key={activeUid}
+          uid={activeUid}
+          editorUid={user.uid}
+          workouts={workouts || []}
+          onGoToLibrary={() => setTab('workouts')}
+        />
       ) : (
         <WorkoutList
-          uid={activeUid}
+          workouts={workouts}
+          error={workoutsError}
           title={listTitle}
           onEdit={w => setEditing(w)}
           onNew={() => setEditing({})}
