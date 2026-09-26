@@ -5,7 +5,7 @@
 //
 // spec.json (every section is optional except trainee):
 // {
-//   "trainee": "נופר",                        // name (or part of it) or email
+//   "trainee": "נופר",                        // part of the name or email
 //   "workouts": [                              // created, or updated if the name exists
 //     { "name": "אימון A · רגליים", "exercises": [{ "name": "סקוואט", "sets": 3, "reps": 10, "weight": 30, "note": "" }] },
 //     { "name": "פילאטיס מכשירים", "kind": "activity", "durationMin": 50, "note": "רפורמר" }

@@ -147,14 +147,14 @@ export async function commit(s, writes) {
   });
 }
 
-// Signed-in session + the one trainee matching a name (or part of it) or email.
+// Signed-in session + the one trainee whose name or email contains the query.
 export async function openTrainee(query) {
   const s = await session();
   const settings = await getDoc(s, 'config/settings');
   if (settings?.adminEmail !== s.email) console.warn(`! ${s.email} is not the admin in config/settings; other trainees' data will be denied.`);
   const trainees = await listDocs(s, 'trainees');
   const q = norm(query);
-  const matches = trainees.filter(t => norm(t.email) === q || norm(t.name).includes(q));
+  const matches = trainees.filter(t => norm(t.email).includes(q) || norm(t.name).includes(q));
   if (matches.length !== 1) {
     throw new Error(`Trainee "${query}" matched ${matches.length}: ${trainees.map(t => `${t.name} <${t.email}>`).join(', ') || '(no trainees)'}`);
   }
