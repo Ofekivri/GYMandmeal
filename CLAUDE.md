@@ -1,6 +1,6 @@
 # GYMandmeal: Claude Code context
 
-Simple Hebrew (RTL) workout and nutrition planner for trainees (Nofar first). Ofek is admin and sees everything a trainee plans and does. Tracked in Linear as PSY-103 (workouts) and PSY-104 (nutrition). Live at https://gy-mandmeal.vercel.app.
+Simple Hebrew (RTL) workout and nutrition planner for trainees (Nofar first). Ofek is admin and sees everything a trainee plans and does, and also trains in the app as a trainee himself. Tracked in Linear as PSY-103 (workouts) and PSY-104 (nutrition). Live at https://gy-mandmeal.vercel.app.
 Ofek's own ACL rehab stays in the separate ACL-Tracker repo.
 
 **Stack:** Vite + React 19, plain JSX, one CSS file (`src/index.css`), Firebase Auth (Google + email/password) + Firestore with an on-device cache (works offline, syncs later).
@@ -19,7 +19,7 @@ It uses the same Firebase project as ACL-Tracker. Security rules live in that re
 - `src/data.js`: all Firestore reads and writes
 - `src/dates.js`: local "YYYY-MM-DD" date helpers. Weeks start on Sunday. Never use `toISOString()` (it's UTC)
 - `src/Planner.jsx`: week strip and the combined day view (workouts and meals), missed workouts, copy last week (workouts and meals), start a workout
-- `src/Overview.jsx` + `src/weekSummary.js`: admin-only "סקירה" tab (the admin's default tab). One card per trainee with the week's workouts done/due, meals eaten/due, and missed workouts. Reads each trainee's week once with `fetchWeek`
+- `src/Overview.jsx` + `src/weekSummary.js`: admin-only "סקירה" tab. The admin opens on their own plan, like any trainee. One card per trainee with the week's workouts done/due, meals eaten/due, and missed workouts. Reads each trainee's week once with `fetchWeek`
 - `src/WeekNav.jsx`: week arrows shared by the planner and the overview
 - `src/DayMeals.jsx`: a day's meals: add, edit, "אכלתי" / "אכלתי משהו אחר", and copy the day's meals to another date
 - `src/meals.js`: meal slots, sorting, duplicate check, and autocomplete suggestions
@@ -41,7 +41,7 @@ trainees/{uid}/plan/{id}       { date: "YYYY-MM-DD", workoutId, workoutName, don
 trainees/{uid}/meals/{id}      { date, slot: breakfast|lunch|dinner|snack, text, eatenAt, actual, createdAt, createdBy }
 trainees/{uid}/logs/{id}       { kind, workoutId, workoutName, date, startedAt, finishedAt, note, planId, unplanned, loggedBy, effort, durationMin, exercises: [{ name, sets: [{ weight, reps }] }] }
 ```
-Admin is `config/settings.adminEmail`, the same source the rules' `isAdmin()` reads. The admin gets no trainee doc.
+Admin is `config/settings.adminEmail`, the same source the rules' `isAdmin()` reads. The admin also gets a trainee doc (listed as "(אני)" in the switcher), so they plan and log their own training here.
 A plan item is done when `doneAt` is set: by "סימון כבוצע", or by finishing a workout, which also sets `logId`. It's missed when its date is before today and it isn't done.
 Finishing a workout writes the log and updates the plan item in one batch (`finishSession`). A planned workout moves to the day it was done; an unplanned one gets a new plan item (`unplanned: true` on the log).
 A workout in progress lives in localStorage (`gym_session_v1_{traineeUid}`) until it's saved or discarded. Only sets marked ✓ are saved.
@@ -79,6 +79,7 @@ self.addEventListener('activate', e => e.waitUntil((async () => {
 Bump `CACHE` in `sw.js` only if the caching strategy changes. Hashed assets never need it.
 
 ## Gotchas
+- Deleting a user in Firebase Authentication leaves their `trainees/{uid}` doc, so they stay in the overview. Delete the doc in the Firestore console too (that removes its subcollections).
 - macOS is case-insensitive: never name a helper `foo.js` next to a component `Foo.jsx` (`./Foo` resolves to the .js file).
 
 ## Workflow

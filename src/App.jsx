@@ -99,19 +99,13 @@ export default function App() {
     }
     const admin = await fetchIsAdmin(u);
     setIsAdmin(admin);
-    if (admin) {
-      setTab('overview');
-      // The admin manages trainees (listener below); their own training
-      // lives in the ACL Tracker.
-      setTrainees(null);
-    } else {
-      try {
-        await ensureTrainee(u);
-      } catch (err) {
-        console.error('[trainee] profile save failed', err);
-      }
-      setActiveUid(u.uid);
-    }
+    // Everyone trains here, the admin included, and opens on their own plan.
+    // The admin also manages the other trainees (listener above).
+    if (admin) setTrainees(null);
+    // Not awaited: offline, the write only resolves once it reaches the
+    // server, and the cached copy is enough to go on.
+    ensureTrainee(u).catch(err => console.error('[trainee] profile save failed', err));
+    setActiveUid(u.uid);
     setUser(u);
   }), []);
 
@@ -149,7 +143,7 @@ export default function App() {
 
   const firstName = (user.displayName || '').split(' ')[0];
   const active = (trainees || []).find(t => t.uid === activeUid);
-  const listTitle = isAdmin ? `האימונים של ${active?.name || ''}` : 'האימונים שלי';
+  const listTitle = isAdmin && activeUid !== user.uid ? `האימונים של ${active?.name || ''}` : 'האימונים שלי';
   const inSession = session && session.traineeUid === activeUid;
 
   return (
@@ -164,7 +158,7 @@ export default function App() {
           <label htmlFor="trainee" className="muted">מתאמן/ת:</label>
           <select id="trainee" className="input" value={activeUid || ''}
             onChange={e => { setActiveUid(e.target.value); setEditing(null); }}>
-            {trainees.map(t => <option key={t.uid} value={t.uid}>{t.name}</option>)}
+            {trainees.map(t => <option key={t.uid} value={t.uid}>{t.uid === user.uid ? `${t.name} (אני)` : t.name}</option>)}
           </select>
         </div>
       )}
