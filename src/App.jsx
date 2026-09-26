@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { onAuthStateChanged, signOut } from 'firebase/auth';
 import { auth } from './firebase';
 import { fetchIsAdmin, ensureTrainee, fetchTrainees, listenWorkouts, listenLogs, finishSession } from './data';
-import { buildSession, sessionToLog, loadSession, storeSession } from './session';
+import { buildSession, sessionToLog, loadSession, storeSession, knownExerciseNames } from './session';
 import Login from './Login';
 import Planner from './Planner';
 import WorkoutList from './WorkoutList';
@@ -191,6 +191,7 @@ export default function App() {
           uid={activeUid}
           editorUid={user.uid}
           workout={editing.id ? editing : null}
+          knownNames={knownExerciseNames(workouts, logs)}
           onDone={() => setEditing(null)}
         />
       ) : tab === 'plan' ? (

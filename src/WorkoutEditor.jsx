@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { saveWorkout, deleteWorkout } from './data';
+import { normalizeName } from './session';
 
 let nextKey = 0;
 const newRow = (ex = {}) => ({
@@ -18,7 +19,10 @@ const toNumber = v => {
 };
 
 // Create or edit one workout: a name plus an ordered list of exercises.
-export default function WorkoutEditor({ uid, editorUid, workout, onDone }) {
+// knownNames: Map(normalized name → spelling) of every exercise the trainee
+// has used — offered as suggestions, and a typed name that matches one is
+// saved with that exact spelling.
+export default function WorkoutEditor({ uid, editorUid, workout, knownNames, onDone }) {
   const [name, setName] = useState(workout?.name || '');
   const [rows, setRows] = useState(() =>
     workout?.exercises?.length ? workout.exercises.map(newRow) : [newRow()],
@@ -51,7 +55,7 @@ export default function WorkoutEditor({ uid, editorUid, workout, onDone }) {
         ...(workout?.id ? { id: workout.id } : {}),
         name: name.trim(),
         exercises: filled.map(r => ({
-          name: r.name.trim(),
+          name: knownNames.get(normalizeName(r.name)) || r.name.trim().replace(/\s+/g, ' '),
           sets: toNumber(r.sets),
           reps: toNumber(r.reps),
           weight: toNumber(r.weight),
@@ -92,12 +96,16 @@ export default function WorkoutEditor({ uid, editorUid, workout, onDone }) {
           onChange={e => setName(e.target.value)} />
       </div>
 
+      <datalist id="exercise-names">
+        {[...knownNames.values()].map(n => <option key={n} value={n} />)}
+      </datalist>
+
       <div className="list">
         {rows.map((r, i) => (
           <div key={r.key} className="card exercise">
             <div className="exercise-head">
               <span className="muted" style={{ minWidth: 18 }}>{i + 1}.</span>
-              <input className="input" value={r.name} placeholder="שם התרגיל" aria-label="שם התרגיל"
+              <input className="input" value={r.name} placeholder="שם התרגיל" aria-label="שם התרגיל" list="exercise-names"
                 onChange={e => updateRow(r.key, 'name', e.target.value)} />
               <button className="btn btn-ghost" onClick={() => moveRow(i, -1)} disabled={i === 0} aria-label="הזזה למעלה">↑</button>
               <button className="btn btn-ghost" onClick={() => moveRow(i, 1)} disabled={i === rows.length - 1} aria-label="הזזה למטה">↓</button>

@@ -99,4 +99,4 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .check.on { background: #2e7d32; border-color: #2e7d32; color: #fff; }
 .history-ex { padding: 6px 0; border-top: 1px solid var(--border); }
 .btn-small { padding: 6px 10px; font-size: 14px; }
-.toast { position: fixed; bottom: 16px; inset-inline: 16px; max-width: 448px; margin: 0 auto; box-shadow: 0 4px 16px rgba(0,0,0,.12); z-index: 10; }
+.toast { position: fixed; bottom: calc(16px + env(safe-area-inset-bottom)); inset-inline: 16px; max-width: 448px; margin: 0 auto; box-shadow: 0 4px 16px rgba(0,0,0,.12); z-index: 10; }

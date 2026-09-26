@@ -100,3 +100,17 @@ export function storeSession(uid, session) {
     console.warn('[session] save failed', err);
   }
 }
+
+// Every exercise name the trainee has used, one spelling per name (workouts
+// first, then logs). Feeds autocomplete so "סקוואט" doesn't become
+// "סקוואט " or "Squat" in one workout and split the history.
+export function knownExerciseNames(workouts, logs) {
+  const byKey = new Map();
+  const add = name => {
+    const key = normalizeName(name);
+    if (key && !byKey.has(key)) byKey.set(key, name.trim().replace(/\s+/g, ' '));
+  };
+  for (const w of workouts || []) for (const ex of w.exercises || []) add(ex.name);
+  for (const log of logs || []) for (const ex of log.exercises || []) add(ex.name);
+  return byKey;
+}
