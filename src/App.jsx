@@ -63,12 +63,14 @@ export default function App() {
     });
   }, [activeUid]);
 
-  // Admin: live trainee list. Keeps the picked trainee if still there.
+  // Admin: live trainee list. Keeps the picked trainee if still there, and
+  // otherwise falls back to the admin's own plan (even before their own
+  // profile shows up in the list).
   useEffect(() => {
     if (!isAdmin || !user) return;
     return listenTrainees(list => {
       setTrainees(list);
-      setActiveUid(cur => (cur && list.some(t => t.uid === cur) ? cur : list[0]?.uid || null));
+      setActiveUid(cur => (list.some(t => t.uid === cur) ? cur : user.uid));
     }, err => {
       console.error('[trainees] listen failed', err);
       setError(withCode('לא הצלחנו לטעון את רשימת המתאמנים.', err));
@@ -166,13 +168,6 @@ export default function App() {
       {error && <div className="error" style={{ marginBottom: 12 }}>{error}</div>}
       
       {isAdmin && trainees === null && !error && <p className="muted">טוען…</p>}
-
-      {isAdmin && trainees?.length === 0 && !error && (
-        <div className="card">
-          <div style={{ fontWeight: 600 }}>עוד אין מתאמנים</div>
-          <div className="muted">שלחו להם את הקישור לאתר. אחרי ההתחברות הראשונה הם יופיעו כאן.</div>
-        </div>
-      )}
 
       {activeUid && inSession && (session.kind === 'activity' ? (
         <ActivitySession
