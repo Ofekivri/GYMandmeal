@@ -19,12 +19,22 @@ const toNumber = v => {
   return Number.isFinite(n) ? n : null;
 };
 
-// Create or edit one workout: a name plus an ordered list of exercises.
+const KINDS = [
+  { id: 'strength', label: 'כוח (סטים)' },
+  { id: 'activity', label: 'פעילות (פילאטיס, ריצה…)' },
+];
+
+// Create or edit one workout. Strength: a name plus an ordered list of
+// exercises. Activity (Pilates, a class, a run): no sets — the trainee logs
+// effort and duration when it's done.
 // knownNames: Map(normalized name → spelling) of every exercise the trainee
 // has used — offered as suggestions, and a typed name that matches one is
 // saved with that exact spelling.
 export default function WorkoutEditor({ uid, editorUid, workout, knownNames, onDone }) {
   const [name, setName] = useState(workout?.name || '');
+  const [kind, setKind] = useState(workout?.kind === 'activity' ? 'activity' : 'strength');
+  const [durationMin, setDurationMin] = useState(workout?.durationMin != null ? String(workout.durationMin) : '');
+  const [activityNote, setActivityNote] = useState(workout?.note || '');
   const [rows, setRows] = useState(() =>
     workout?.exercises?.length ? workout.exercises.map(newRow) : [newRow()],
   );
@@ -46,8 +56,10 @@ export default function WorkoutEditor({ uid, editorUid, workout, knownNames, onD
   const save = async () => {
     const filled = rows.filter(r => r.name.trim() || r.weight || r.note.trim());
     if (!name.trim()) return setError('תנו שם לאימון.');
-    if (filled.some(r => !r.name.trim())) return setError('לכל תרגיל צריך שם.');
-    if (filled.length === 0) return setError('הוסיפו לפחות תרגיל אחד.');
+    if (kind === 'strength') {
+      if (filled.some(r => !r.name.trim())) return setError('לכל תרגיל צריך שם.');
+      if (filled.length === 0) return setError('הוסיפו לפחות תרגיל אחד.');
+    }
 
     setError('');
     setBusy(true);
@@ -55,7 +67,10 @@ export default function WorkoutEditor({ uid, editorUid, workout, knownNames, onD
       await saveWorkout(uid, {
         ...(workout?.id ? { id: workout.id } : {}),
         name: name.trim(),
-        exercises: filled.map(r => ({
+        kind,
+        durationMin: kind === 'activity' ? toNumber(durationMin) : null,
+        note: kind === 'activity' ? activityNote.trim() : '',
+        exercises: kind === 'activity' ? [] : filled.map(r => ({
           name: knownNames.get(normalizeName(r.name)) || r.name.trim().replace(/\s+/g, ' '),
           sets: toNumber(r.sets),
           reps: toNumber(r.reps),
@@ -93,10 +108,35 @@ export default function WorkoutEditor({ uid, editorUid, workout, knownNames, onD
 
       <div className="field" style={{ marginBottom: 16 }}>
         <label htmlFor="workout-name">שם האימון</label>
-        <input id="workout-name" className="input" value={name} placeholder="אימון A · רגליים"
+        <input id="workout-name" className="input" value={name} placeholder={kind === 'activity' ? 'פילאטיס מכשירים' : 'אימון A · רגליים'}
           onChange={e => setName(e.target.value)} />
       </div>
 
+      <div className="field" style={{ marginBottom: 16 }}>
+        <label>סוג האימון</label>
+        <div className="chips" role="radiogroup" aria-label="סוג האימון">
+          {KINDS.map(k => (
+            <button key={k.id} type="button" role="radio" aria-checked={kind === k.id}
+              className={`chip${kind === k.id ? ' on' : ''}`} onClick={() => setKind(k.id)}>{k.label}</button>
+          ))}
+        </div>
+      </div>
+
+      {kind === 'activity' ? (
+        <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+          <div className="muted">בלי סטים: בסוף האימון רושמים מד מאמץ, משך והערה.</div>
+          <div className="field">
+            <label htmlFor="activity-duration">משך משוער (דקות)</label>
+            <input id="activity-duration" className="input" inputMode="numeric" value={durationMin} placeholder="50"
+              onChange={e => setDurationMin(e.target.value)} />
+          </div>
+          <div className="field">
+            <label htmlFor="activity-note">הערה (לא חובה)</label>
+            <input id="activity-note" className="input" value={activityNote} placeholder="רפורמר, סטודיו ליד הבית"
+              onChange={e => setActivityNote(e.target.value)} />
+          </div>
+        </div>
+      ) : (<>
       <datalist id="exercise-names">
         {[...knownNames.values()].map(n => <option key={n} value={n} />)}
       </datalist>
@@ -132,6 +172,7 @@ export default function WorkoutEditor({ uid, editorUid, workout, knownNames, onD
         ))}
         <button className="btn btn-block btn-dashed" onClick={() => setRows(rs => [...rs, newRow()])}>+ הוספת תרגיל</button>
       </div>
+      </>)}
 
       {error && <div className="error" style={{ marginTop: 12 }}>{error}</div>}
 

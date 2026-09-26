@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { deleteLog } from './data';
 import { dayLabel } from './dates';
-import { durationMinutes, formatSet } from './session';
+import { durationMinutes, formatSet, isActivity, EFFORT_LABELS } from './session';
 import { setsCount } from './hebrew';
 import { withCode } from './errors';
 
@@ -38,7 +38,9 @@ export default function History({ uid, logs, error }) {
       <div className="list">
         {logs.map(log => {
           const sets = (log.exercises || []).reduce((n, e) => n + e.sets.length, 0);
-          const minutes = log.startedAt ? durationMinutes(log.startedAt, log.finishedAt) : null;
+          const activity = isActivity(log);
+          // Activities log their own duration; strength uses start → finish.
+          const minutes = activity ? log.durationMin : log.startedAt ? durationMinutes(log.startedAt, log.finishedAt) : null;
           const open = openId === log.id;
           return (
             <div key={log.id} className="card">
@@ -47,13 +49,14 @@ export default function History({ uid, logs, error }) {
                 <div style={{ flex: 1 }}>
                   <div className="title">{log.workoutName}</div>
                   <div className="muted">
-                    {dayLabel(log.date)} · {setsCount(sets)}{minutes != null && minutes < 300 ? ` · ${minutes} דק׳` : ''}
+                    {dayLabel(log.date)} · {activity ? `מאמץ ${log.effort}/10` : setsCount(sets)}{minutes != null && minutes < 300 ? ` · ${minutes} דק׳` : ''}
                   </div>
                 </div>
                 <span className="muted" aria-hidden="true">{open ? '▴' : '▾'}</span>
               </button>
               {open && (
                 <div style={{ marginTop: 10 }}>
+                  {activity && <div className="history-ex">מד מאמץ: {log.effort}/10 · {EFFORT_LABELS[log.effort]}</div>}
                   {(log.exercises || []).map((e, i) => (
                     <div key={i} className="history-ex">
                       <div style={{ fontWeight: 500 }}>{e.name}</div>

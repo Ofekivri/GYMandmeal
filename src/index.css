@@ -121,3 +121,9 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .bar-fill { height: 100%; background: var(--accent); border-radius: 3px; }
 .bar-fill.full { background: #2e7d32; }
 .overview-missed { font-size: 13px; color: var(--danger); background: var(--danger-bg); border-radius: 8px; padding: 4px 8px; }
+
+.effort-grid { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 6px; }
+.effort { height: 42px; border-radius: 10px; border: 1px solid var(--border); background: var(--card); font-weight: 600; font-size: 16px; cursor: pointer; }
+.effort.on.effort-easy { background: #2e7d32; border-color: #2e7d32; color: #fff; }
+.effort.on.effort-mid { background: #d97706; border-color: #d97706; color: #fff; }
+.effort.on.effort-hard { background: var(--danger); border-color: var(--danger); color: #fff; }

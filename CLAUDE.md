@@ -16,7 +16,8 @@ It uses the same Firebase project as ACL-Tracker. Security rules live in that re
 - `src/DayMeals.jsx`: a day's meals: add, edit, "אכלתי" / "אכלתי משהו אחר", and copy the day's meals to another date
 - `src/meals.js`: meal slots, sorting, duplicate check, and autocomplete suggestions
 - `src/session.js`: pure logic for a workout in progress (build from a template and last time's sets, convert to a log, localStorage draft)
-- `src/WorkoutSession.jsx`: doing a workout, one exercise at a time
+- `src/WorkoutSession.jsx`: doing a strength workout, one exercise at a time
+- `src/ActivitySession.jsx`: finishing an activity workout (Pilates, a class, a run): effort 1–10, minutes and a note, with no sets
 - `src/History.jsx`: finished workouts with every set; deleting a log undoes its plan item
 - `src/hebrew.js`: count wording ("תרגיל אחד", not "1 תרגילים")
 - `public/sw.js`: offline app shell (production only). Pages are network-first and hashed `/assets/*` are cache-first; Firebase and fonts pass through
@@ -27,10 +28,10 @@ It uses the same Firebase project as ACL-Tracker. Security rules live in that re
 ## Data model (`trainees/{uid}`, owner or admin only)
 ```
 trainees/{uid}                 { name, email, lastSeenAt }
-trainees/{uid}/workouts/{id}   { name, exercises: [{ name, sets, reps, weight, note }], createdAt, updatedAt, updatedBy }
+trainees/{uid}/workouts/{id}   { name, kind: strength|activity, durationMin, note, exercises: [{ name, sets, reps, weight, note }], createdAt, updatedAt, updatedBy }
 trainees/{uid}/plan/{id}       { date: "YYYY-MM-DD", workoutId, workoutName, doneAt, logId, createdAt, createdBy }
 trainees/{uid}/meals/{id}      { date, slot: breakfast|lunch|dinner|snack, text, eatenAt, actual, createdAt, createdBy }
-trainees/{uid}/logs/{id}       { workoutId, workoutName, date, startedAt, finishedAt, note, planId, unplanned, loggedBy, exercises: [{ name, sets: [{ weight, reps }] }] }
+trainees/{uid}/logs/{id}       { kind, workoutId, workoutName, date, startedAt, finishedAt, note, planId, unplanned, loggedBy, effort, durationMin, exercises: [{ name, sets: [{ weight, reps }] }] }
 ```
 Admin is `config/settings.adminEmail`, the same source the rules' `isAdmin()` reads. The admin gets no trainee doc.
 A plan item is done when `doneAt` is set: by "סימון כבוצע", or by finishing a workout, which also sets `logId`. It's missed when its date is before today and it isn't done.
@@ -44,6 +45,7 @@ A meal is eaten when `eatenAt` is set. `actual` is set when something else was e
 - Date planner: a week strip, and workouts are placed by hand. Nothing is auto-scheduled and there's no recurrence ("copy last week" instead).
 - A missed workout stays on its date as "not done", with a one-tap "move to today".
 - Logging is weight × reps per set, showing last time's values.
+- Workouts have a `kind`. `strength` (the default; a missing kind means strength) logs sets. `activity` (e.g. Pilates machines) has no exercises and logs `effort` (RPE 1–10) plus `durationMin`.
 - Nutrition is a meal plan per day with check-off, not a calorie counter. Meals are free text, and both the trainee and the admin can edit them. The planner's day view shows workouts and meals together.
 - Exercises are free text (no shared exercise library). The editor suggests names already used (`<datalist>`), and a name that matches one ignoring case and spaces is saved with the existing spelling.
 - All UI copy is in Hebrew. Use gender-neutral plural imperatives ("נסו שוב").

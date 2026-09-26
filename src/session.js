@@ -20,7 +20,25 @@ export function lastSetsFor(logs, name) {
 
 const str = v => (v == null ? '' : String(v));
 
+export const isActivity = workoutOrLog => workoutOrLog?.kind === 'activity';
+
+// Effort scale 1–10 (RPE) for activity workouts.
+export const EFFORT_LABELS = { 1: 'קל מאוד', 2: 'קל', 3: 'קל', 4: 'בינוני', 5: 'בינוני', 6: 'בינוני-קשה', 7: 'קשה', 8: 'קשה', 9: 'קשה מאוד', 10: 'מקסימלי' };
+
 export function buildSession({ traineeUid, workout, planItem, logs }) {
+  if (isActivity(workout)) {
+    return {
+      kind: 'activity',
+      traineeUid,
+      workoutId: workout.id,
+      workoutName: workout.name,
+      planId: planItem?.id || null,
+      startedAt: Date.now(),
+      effort: null,
+      durationMin: str(workout.durationMin),
+      note: '',
+    };
+  }
   return {
     traineeUid,
     workoutId: workout.id,
@@ -59,6 +77,20 @@ const toNumber = v => {
 // Only sets marked done are saved; exercises with none are left out.
 export function sessionToLog(session) {
   const finishedAt = Date.now();
+  if (isActivity(session)) {
+    return {
+      kind: 'activity',
+      workoutId: session.workoutId,
+      workoutName: session.workoutName,
+      date: todayKey(),
+      startedAt: session.startedAt,
+      finishedAt,
+      note: session.note.trim(),
+      effort: session.effort,
+      durationMin: toNumber(session.durationMin),
+      exercises: [],
+    };
+  }
   return {
     workoutId: session.workoutId,
     workoutName: session.workoutName,

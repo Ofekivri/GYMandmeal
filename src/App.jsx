@@ -8,6 +8,7 @@ import Planner from './Planner';
 import WorkoutList from './WorkoutList';
 import WorkoutEditor from './WorkoutEditor';
 import WorkoutSession from './WorkoutSession';
+import ActivitySession from './ActivitySession';
 import History from './History';
 import Overview from './Overview';
 import { withCode } from './errors';
@@ -179,7 +180,15 @@ export default function App() {
         </div>
       )}
 
-      {activeUid && inSession && (
+      {activeUid && inSession && (session.kind === 'activity' ? (
+        <ActivitySession
+          key={session.startedAt}
+          session={session}
+          onChange={updateSession}
+          onFinish={finishCurrentSession}
+          onDiscard={() => updateSession(null)}
+        />
+      ) : (
         <WorkoutSession
           key={session.startedAt}
           session={session}
@@ -187,7 +196,7 @@ export default function App() {
           onFinish={finishCurrentSession}
           onDiscard={() => updateSession(null)}
         />
-      )}
+      ))}
 
       {activeUid && !inSession && !editing && (
         <div className="tabs" role="tablist">

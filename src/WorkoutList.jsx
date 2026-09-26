@@ -1,4 +1,4 @@
-import { exercisesCount } from './hebrew';
+import { workoutSubtitle } from './hebrew';
 
 // The trainee's workout library. Tapping a workout opens the editor;
 // "התחלה" starts it right away without planning it.
@@ -24,7 +24,7 @@ export default function WorkoutList({ workouts, error, title, onEdit, onNew, onS
                 onClick={() => onEdit(w)} aria-label={`עריכת ${w.name}`}>
                 <div style={{ flex: 1 }}>
                   <div className="title">{w.name}</div>
-                  <div className="muted">{exercisesCount((w.exercises || []).length)} · לחצו לעריכה</div>
+                  <div className="muted">{workoutSubtitle(w)} · לחצו לעריכה</div>
                 </div>
               </button>
               <button className="btn btn-small" onClick={() => onStart(w)}>התחלה</button>

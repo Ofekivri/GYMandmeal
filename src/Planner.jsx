@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { listenPlan, addPlanItem, addPlanItems, updatePlanItem, deletePlanItem, listenMeals, addMeals } from './data';
-import { exercisesCount, workoutsCount, mealsCount } from './hebrew';
+import { workoutSubtitle, workoutsCount, mealsCount } from './hebrew';
 import { sortMeals, sameMeal, mealSuggestions } from './meals';
 import DayMeals from './DayMeals';
 import WeekNav from './WeekNav';
@@ -188,7 +188,7 @@ export default function Planner({ uid, editorUid, workouts, onGoToLibrary, onSta
                 {item.doneAt && <span className="badge done">בוצע</span>}
                 {isMissed(item) && <span className="badge missed">לא בוצע</span>}
               </div>
-              {item.logId && <div className="muted">הסטים שמורים בהיסטוריה.</div>}
+              {item.logId && <div className="muted">הפרטים שמורים בהיסטוריה.</div>}
               {!item.doneAt && !workout && <div className="muted">האימון הזה נמחק מרשימת האימונים.</div>}
               <div className="plan-actions">
                 {item.doneAt ? (
@@ -229,7 +229,7 @@ export default function Planner({ uid, editorUid, workouts, onGoToLibrary, onSta
                 <div className="list">
                   {workouts.map(w => (
                     <button key={w.id} className="btn btn-block" style={{ textAlign: 'start' }} onClick={() => place(w)}>
-                      {w.name} <span className="muted">· {exercisesCount((w.exercises || []).length)}</span>
+                      {w.name} <span className="muted">· {workoutSubtitle(w)}</span>
                     </button>
                   ))}
                 </div>
