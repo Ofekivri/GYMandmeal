@@ -1,24 +1,42 @@
 import { useEffect, useState } from 'react';
 import { onAuthStateChanged, signOut } from 'firebase/auth';
 import { auth } from './firebase';
-import { fetchIsAdmin, ensureTrainee, fetchTrainees, listenWorkouts } from './data';
+import { fetchIsAdmin, ensureTrainee, fetchTrainees, listenWorkouts, listenLogs, finishSession } from './data';
+import { buildSession, sessionToLog, loadSession, storeSession } from './session';
 import Login from './Login';
 import Planner from './Planner';
 import WorkoutList from './WorkoutList';
 import WorkoutEditor from './WorkoutEditor';
+import WorkoutSession from './WorkoutSession';
+import History from './History';
+
+// With no signal the save stays queued in Firestore's on-device cache; stop
+// waiting for the server after this long and let the trainee move on.
+const OFFLINE_SAVE_WAIT_MS = 5000;
+
+const TABS = [
+  { id: 'plan', label: 'תכנון' },
+  { id: 'workouts', label: 'אימונים' },
+  { id: 'history', label: 'היסטוריה' },
+];
 
 export default function App() {
   const [user, setUser] = useState(undefined); // undefined = still checking auth
   const [isAdmin, setIsAdmin] = useState(false);
   const [trainees, setTrainees] = useState([]);
   const [activeUid, setActiveUid] = useState(null); // whose workouts we're looking at
-  const [tab, setTab] = useState('plan'); // 'plan' | 'workouts'
+  const [tab, setTab] = useState('plan');
   const [editing, setEditing] = useState(null); // null = list, {} = new, workout = edit
   const [workouts, setWorkouts] = useState(null); // null = loading
   const [workoutsError, setWorkoutsError] = useState('');
+  const [logs, setLogs] = useState(null); // null = loading, newest first
+  const [logsError, setLogsError] = useState('');
+  const [session, setSession] = useState(null); // workout in progress
+  const [notice, setNotice] = useState('');
   const [error, setError] = useState('');
 
-  // One workouts listener, shared by the planner (picker) and the library.
+  // Shared listeners for the active trainee: workouts feed the planner picker
+  // and the library; logs feed history and the "last time" numbers.
   useEffect(() => {
     if (!activeUid) return;
     setWorkouts(null);
@@ -29,6 +47,28 @@ export default function App() {
       setWorkouts([]);
     });
   }, [activeUid]);
+
+  useEffect(() => {
+    if (!activeUid) return;
+    setLogs(null);
+    setLogsError('');
+    return listenLogs(activeUid, setLogs, err => {
+      console.error('[logs] listen failed', err);
+      setLogsError('לא הצלחנו לטעון את ההיסטוריה. בדקו את החיבור ונסו שוב.');
+      setLogs([]);
+    });
+  }, [activeUid]);
+
+  // Resume a workout that was in progress on this device.
+  useEffect(() => {
+    setSession(activeUid ? loadSession(activeUid) : null);
+  }, [activeUid]);
+
+  useEffect(() => {
+    if (!notice) return;
+    const t = setTimeout(() => setNotice(''), 5000);
+    return () => clearTimeout(t);
+  }, [notice]);
 
   useEffect(() => onAuthStateChanged(auth, async u => {
     setError('');
@@ -63,12 +103,42 @@ export default function App() {
     setUser(u);
   }), []);
 
+  const updateSession = next => {
+    setSession(next);
+    storeSession(next?.traineeUid || activeUid, next);
+  };
+
+  const startSession = (workout, planItem = null) => {
+    setEditing(null);
+    setNotice('');
+    updateSession(buildSession({ traineeUid: activeUid, workout, planItem, logs }));
+  };
+
+  const finishCurrentSession = async () => {
+    const finished = session;
+    const write = finishSession(finished.traineeUid, { log: sessionToLog(finished), planId: finished.planId }, user.uid);
+    write.catch(err => console.error('[session] background save failed', err));
+    const outcome = await Promise.race([
+      write.then(() => 'saved'),
+      new Promise(resolve => setTimeout(() => resolve('queued'), OFFLINE_SAVE_WAIT_MS)),
+    ]);
+    // Clear by the finished session's own trainee, in case the admin switched
+    // trainees while the save was in flight.
+    storeSession(finished.traineeUid, null);
+    setSession(cur => (cur?.startedAt === finished.startedAt ? null : cur));
+    setTab('history');
+    setNotice(outcome === 'saved'
+      ? 'האימון נשמר.'
+      : 'אין חיבור כרגע. האימון נשמר במכשיר ויסונכרן כשהחיבור יחזור.');
+  };
+
   if (user === undefined) return <div className="center muted">טוען…</div>;
   if (!user) return <Login />;
 
   const firstName = (user.displayName || '').split(' ')[0];
   const active = trainees.find(t => t.uid === activeUid);
   const listTitle = isAdmin ? `האימונים של ${active?.name || ''}` : 'האימונים שלי';
+  const inSession = session && session.traineeUid === activeUid;
 
   return (
     <div className="page">
@@ -88,7 +158,7 @@ export default function App() {
       )}
 
       {error && <div className="error" style={{ marginBottom: 12 }}>{error}</div>}
-
+      
       {isAdmin && trainees.length === 0 && !error && (
         <div className="card">
           <div style={{ fontWeight: 600 }}>עוד אין מתאמנים</div>
@@ -96,14 +166,26 @@ export default function App() {
         </div>
       )}
 
-      {activeUid && !editing && (
+      {activeUid && inSession && (
+        <WorkoutSession
+          key={session.startedAt}
+          session={session}
+          onChange={updateSession}
+          onFinish={finishCurrentSession}
+          onDiscard={() => updateSession(null)}
+        />
+      )}
+
+      {activeUid && !inSession && !editing && (
         <div className="tabs" role="tablist">
-          <button role="tab" aria-selected={tab === 'plan'} className={tab === 'plan' ? 'active' : ''} onClick={() => setTab('plan')}>תכנון</button>
-          <button role="tab" aria-selected={tab === 'workouts'} className={tab === 'workouts' ? 'active' : ''} onClick={() => setTab('workouts')}>אימונים</button>
+          {TABS.map(t => (
+            <button key={t.id} role="tab" aria-selected={tab === t.id} className={tab === t.id ? 'active' : ''}
+              onClick={() => setTab(t.id)}>{t.label}</button>
+          ))}
         </div>
       )}
 
-      {activeUid && (editing ? (
+      {activeUid && !inSession && (editing ? (
         <WorkoutEditor
           key={editing.id || 'new'}
           uid={activeUid}
@@ -118,16 +200,22 @@ export default function App() {
           editorUid={user.uid}
           workouts={workouts || []}
           onGoToLibrary={() => setTab('workouts')}
+          onStart={startSession}
         />
-      ) : (
+      ) : tab === 'workouts' ? (
         <WorkoutList
           workouts={workouts}
           error={workoutsError}
           title={listTitle}
           onEdit={w => setEditing(w)}
           onNew={() => setEditing({})}
+          onStart={w => startSession(w)}
         />
+      ) : (
+        <History uid={activeUid} logs={logs} error={logsError} />
       ))}
+
+      {notice && <div className="info toast" role="status" onClick={() => setNotice('')}>{notice}</div>}
     </div>
   );
 }

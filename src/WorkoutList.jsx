@@ -1,6 +1,9 @@
-// The trainee's workout library. Tapping a workout opens the editor.
+import { exercisesCount } from './hebrew';
+
+// The trainee's workout library. Tapping a workout opens the editor;
+// "התחלה" starts it right away without planning it.
 // workouts: null while loading (App owns the Firestore listener).
-export default function WorkoutList({ workouts, error, title, onEdit, onNew }) {
+export default function WorkoutList({ workouts, error, title, onEdit, onNew, onStart }) {
   return (
     <div>
       <h2 style={{ fontSize: 18, margin: '0 0 12px' }}>{title}</h2>
@@ -16,13 +19,16 @@ export default function WorkoutList({ workouts, error, title, onEdit, onNew }) {
             </div>
           )}
           {workouts.map(w => (
-            <button key={w.id} className="card workout-row" onClick={() => onEdit(w)}>
-              <div style={{ flex: 1 }}>
-                <div className="title">{w.name}</div>
-                <div className="muted">{(w.exercises || []).length} תרגילים</div>
-              </div>
-              <span className="muted" aria-hidden="true">✎</span>
-            </button>
+            <div key={w.id} className="card plan-row">
+              <button className="workout-row" style={{ flex: 1, background: 'none', border: 'none', padding: 0 }}
+                onClick={() => onEdit(w)} aria-label={`עריכת ${w.name}`}>
+                <div style={{ flex: 1 }}>
+                  <div className="title">{w.name}</div>
+                  <div className="muted">{exercisesCount((w.exercises || []).length)} · לחצו לעריכה</div>
+                </div>
+              </button>
+              <button className="btn btn-small" onClick={() => onStart(w)}>התחלה</button>
+            </div>
           ))}
           <button className="btn btn-block btn-dashed" onClick={onNew}>+ אימון חדש</button>
         </div>

@@ -3,6 +3,7 @@
 // admin can read + write all of it.
 import {
   collection, doc, getDoc, getDocs, onSnapshot, setDoc, addDoc, updateDoc, deleteDoc, writeBatch,
+  query, orderBy, limit,
 } from 'firebase/firestore';
 import { db } from './firebase';
 
@@ -105,6 +106,68 @@ export async function addPlanItems(uid, items, editorUid) {
       date, workoutId, workoutName,
       doneAt: null, logId: null, createdAt: Date.now(), createdBy: editorUid,
     });
+  }
+  await batch.commit();
+}
+
+// ─── Logs: finished workouts ────────────────────────────────────────────────
+// { workoutId, workoutName, date, startedAt, finishedAt, note, planId,
+//   unplanned, loggedBy, exercises: [{ name, sets: [{ weight, reps }] }] }
+
+const LOG_HISTORY_LIMIT = 100;
+
+// Newest first. Also feeds the "last time" numbers in a new session.
+export function listenLogs(uid, onData, onError) {
+  return onSnapshot(
+    query(collection(db, 'trainees', uid, 'logs'), orderBy('finishedAt', 'desc'), limit(LOG_HISTORY_LIMIT)),
+    snap => onData(snap.docs.map(d => ({ id: d.id, ...d.data() }))),
+    onError,
+  );
+}
+
+// Saves the log and marks the plan item done in one atomic write. A planned
+// workout moves to the day it was actually done; an unplanned one gets a new
+// plan item so the planner shows it.
+export async function finishSession(uid, { log, planId }, editorUid) {
+  const commit = async existingPlanId => {
+    const batch = writeBatch(db);
+    const logRef = doc(collection(db, 'trainees', uid, 'logs'));
+    const planRef = existingPlanId
+      ? doc(db, 'trainees', uid, 'plan', existingPlanId)
+      : doc(collection(db, 'trainees', uid, 'plan'));
+    batch.set(logRef, { ...log, planId: planRef.id, unplanned: !existingPlanId, loggedBy: editorUid });
+    if (existingPlanId) {
+      batch.update(planRef, { doneAt: log.finishedAt, logId: logRef.id, date: log.date });
+    } else {
+      batch.set(planRef, {
+        date: log.date, workoutId: log.workoutId, workoutName: log.workoutName,
+        doneAt: log.finishedAt, logId: logRef.id, createdAt: log.finishedAt, createdBy: editorUid,
+      });
+    }
+    await batch.commit();
+  };
+  try {
+    await commit(planId);
+  } catch (err) {
+    // The plan item was removed while the workout was in progress: save it
+    // as unplanned instead of losing the sets.
+    if (planId && err.code === 'not-found') return commit(null);
+    throw err;
+  }
+}
+
+// Deleting a log un-does its plan item: removes it if the workout was
+// unplanned, otherwise puts it back to "not done".
+export async function deleteLog(uid, log) {
+  const batch = writeBatch(db);
+  batch.delete(doc(db, 'trainees', uid, 'logs', log.id));
+  if (log.planId) {
+    const planRef = doc(db, 'trainees', uid, 'plan', log.planId);
+    const planSnap = await getDoc(planRef);
+    if (planSnap.exists() && planSnap.data().logId === log.id) {
+      if (log.unplanned) batch.delete(planRef);
+      else batch.update(planRef, { doneAt: null, logId: null });
+    }
   }
   await batch.commit();
 }

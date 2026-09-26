@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { listenPlan, addPlanItem, addPlanItems, updatePlanItem, deletePlanItem } from './data';
+import { exercisesCount } from './hebrew';
 import { todayKey, addDays, weekStart, weekDays, fromKey, shortDate, dayLabel, DAY_LETTERS } from './dates';
 
 const MISSED_LOOKBACK_DAYS = 14;
@@ -7,7 +8,7 @@ const MISSED_LOOKBACK_DAYS = 14;
 // Week strip planner. Workouts are placed on dates by hand — by the trainee
 // or the admin. A past, unfinished workout counts as missed and can be
 // moved to today in one tap.
-export default function Planner({ uid, editorUid, workouts, onGoToLibrary }) {
+export default function Planner({ uid, editorUid, workouts, onGoToLibrary, onStart }) {
   const today = todayKey();
   const [plan, setPlan] = useState(null); // null = loading
   const [viewWeek, setViewWeek] = useState(() => weekStart(today));
@@ -142,18 +143,23 @@ export default function Planner({ uid, editorUid, workouts, onGoToLibrary }) {
         <div className="list">
           {selectedItems.length === 0 && !picking && <p className="muted" style={{ margin: 0 }}>אין אימון מתוכנן ליום הזה.</p>}
 
-          {selectedItems.map(item => (
+          {selectedItems.map(item => {
+            const workout = workouts.find(w => w.id === item.workoutId);
+            return (
             <div key={item.id} className="card">
               <div className="plan-row">
                 <div style={{ flex: 1, fontWeight: 600 }}>{item.workoutName}</div>
                 {item.doneAt && <span className="badge done">בוצע</span>}
                 {isMissed(item) && <span className="badge missed">לא בוצע</span>}
               </div>
+              {item.logId && <div className="muted">הסטים שמורים בהיסטוריה.</div>}
+              {!item.doneAt && !workout && <div className="muted">האימון הזה נמחק מרשימת האימונים.</div>}
               <div className="plan-actions">
                 {item.doneAt ? (
                   !item.logId && <button className="btn btn-ghost" onClick={() => run(() => updatePlanItem(uid, item.id, { doneAt: null }))}>ביטול הסימון</button>
                 ) : (
                   <>
+                    {workout && <button className="btn btn-primary" onClick={() => onStart(workout, item)}>התחלת אימון</button>}
                     <button className="btn" onClick={() => run(() => updatePlanItem(uid, item.id, { doneAt: Date.now() }))}>סימון כבוצע</button>
                     {isMissed(item) && <button className="btn" onClick={() => moveTo(item, today)}>העברה להיום</button>}
                     <button className="btn btn-ghost" onClick={() => setMovingId(movingId === item.id ? null : item.id)}>העברה ליום אחר</button>
@@ -169,7 +175,8 @@ export default function Planner({ uid, editorUid, workouts, onGoToLibrary }) {
                 </div>
               )}
             </div>
-          ))}
+            );
+          })}
 
           {picking ? (
             <div className="card">
@@ -186,7 +193,7 @@ export default function Planner({ uid, editorUid, workouts, onGoToLibrary }) {
                 <div className="list">
                   {workouts.map(w => (
                     <button key={w.id} className="btn btn-block" style={{ textAlign: 'start' }} onClick={() => place(w)}>
-                      {w.name} <span className="muted">· {(w.exercises || []).length} תרגילים</span>
+                      {w.name} <span className="muted">· {exercisesCount((w.exercises || []).length)}</span>
                     </button>
                   ))}
                 </div>
