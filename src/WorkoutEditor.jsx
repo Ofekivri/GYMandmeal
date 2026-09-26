@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { saveWorkout, deleteWorkout } from './data';
-import { normalizeName, cleanVideoLink } from './session';
+import { normalizeName, cleanVideoLink, isDemoId } from './session';
 import { withCode } from './errors';
 
 let nextKey = 0;
@@ -12,6 +12,7 @@ const newRow = (ex = {}) => ({
   weight: ex.weight != null ? String(ex.weight) : '',
   note: ex.note || '',
   video: ex.video || '',
+  demo: isDemoId(ex.demo) ? ex.demo : '', // set by Claude when pushing a program; kept, or removed here
 });
 
 // "" → null, "12.5" → 12.5. Keeps empty fields out of the numbers.
@@ -80,6 +81,7 @@ export default function WorkoutEditor({ uid, editorUid, workout, knownNames, onD
           weight: toNumber(r.weight),
           note: r.note.trim(),
           video: cleanVideoLink(r.video),
+          demo: r.demo,
         })),
       }, editorUid);
       onDone();
@@ -175,6 +177,12 @@ export default function WorkoutEditor({ uid, editorUid, workout, knownNames, onD
             <input className="input" dir="ltr" inputMode="url" value={r.video} aria-label="קישור לסרטון הדגמה"
               placeholder="קישור לסרטון (לא חובה, אחרת חיפוש ביוטיוב)"
               onChange={e => updateRow(r.key, 'video', e.target.value)} />
+            {r.demo && (
+              <div className="plan-row muted">
+                <span style={{ flex: 1 }}>יש לתרגיל אנימציית הדגמה</span>
+                <button className="btn btn-ghost btn-small" onClick={() => updateRow(r.key, 'demo', '')}>הסרה</button>
+              </div>
+            )}
           </div>
         ))}
         <button className="btn btn-block btn-dashed" onClick={() => setRows(rs => [...rs, newRow()])}>+ הוספת תרגיל</button>

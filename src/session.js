@@ -30,6 +30,14 @@ export function videoUrl(name, link) {
   return `https://www.youtube.com/results?search_query=${encodeURIComponent(q)}`;
 }
 
+// 3D animation for an exercise, shown inside the app (no YouTube, no ads):
+// `demo` is an exercise id from the free ExerciseDB V1 API
+// (oss.exercisedb.dev). Free for non-commercial use only, with credit to
+// AscendAPI. Only a plain id is accepted, so no other URL is ever loaded.
+export const DEMO_CREDIT_URL = 'https://ascendapi.com';
+export const isDemoId = id => /^[A-Za-z0-9]{4,16}$/.test(id || '');
+export const demoUrl = id => (isDemoId(id) ? `https://static.exercisedb.dev/media/${id}.gif` : null);
+
 // A typed video link as stored: "" when empty, https:// added when missing,
 // null when it isn't a web address.
 export function cleanVideoLink(value) {
@@ -76,6 +84,7 @@ export function buildSession({ traineeUid, workout, planItem, logs }) {
         target,
         note: ex.note || '',
         video: ex.video || '',
+        demo: ex.demo || '',
         last,
         sets: prefillSets(Math.max(1, ex.sets || last?.sets.length || 3), last, target),
       };
@@ -96,12 +105,13 @@ function prefillSets(count, last, target) {
 }
 
 // Swaps an exercise for this session only (a busy machine, say); the workout
-// itself keeps the original. The target weight, the note and the video link
-// belonged to the original, so the new exercise starts from its own last time.
+// itself keeps the original. The target weight, the note, the video link and
+// the animation belonged to the original, so the new exercise starts from its
+// own last time.
 export function swapExercise(ex, name, logs) {
   const last = lastSetsFor(logs, name);
   const target = { ...ex.target, weight: null };
-  return { ...ex, name, target, note: '', video: '', last, sets: prefillSets(ex.sets.length, last, target) };
+  return { ...ex, name, target, note: '', video: '', demo: '', last, sets: prefillSets(ex.sets.length, last, target) };
 }
 
 // "" → null, "12,5" → 12.5.

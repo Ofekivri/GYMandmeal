@@ -7,7 +7,8 @@
 // {
 //   "trainee": "נופר",                        // part of the name or email
 //   "workouts": [                              // created, or updated if the name exists
-//     { "name": "אימון A · רגליים", "exercises": [{ "name": "סקוואט", "sets": 3, "reps": 10, "weight": 30, "note": "", "video": "https://youtu.be/…" }] },
+//     { "name": "אימון A · רגליים", "exercises": [{ "name": "סקוואט", "sets": 3, "reps": 10, "weight": 30, "note": "", "demo": "qXTaZnJ", "video": "https://youtu.be/…" }] },
+//     // demo: ExerciseDB animation id (find with scripts/demo.mjs), shown in the app; video: YouTube, used only without a demo
 //     { "name": "פילאטיס מכשירים", "kind": "activity", "durationMin": 50, "note": "רפורמר" }
 //   ],
 //   "plan":  [{ "date": "2026-09-28", "workout": "אימון A · רגליים" }],   // skipped if already on that day
@@ -28,7 +29,7 @@
 import { readFileSync } from 'node:fs';
 import { listDocs, getDoc, createDoc, updateDoc, listByDate, commit, openTrainee, norm } from './lib.mjs';
 import { todayKey } from '../src/dates.js';
-import { cleanVideoLink } from '../src/session.js';
+import { cleanVideoLink, isDemoId } from '../src/session.js';
 
 const SLOTS = ['breakfast', 'lunch', 'dinner', 'snack'];
 const isDate = d => /^\d{4}-\d{2}-\d{2}$/.test(d);
@@ -45,6 +46,7 @@ const deleteCount = ['workouts', 'plan', 'meals', 'logs'].reduce((n, k) => n + (
 const cleanExercise = ex => ({
   name: ex.name.trim(), sets: ex.sets ?? null, reps: ex.reps ?? null, weight: ex.weight ?? null, note: ex.note || '',
   video: cleanVideoLink(ex.video) || '',
+  demo: isDemoId(ex.demo) ? ex.demo : '',
 });
 const cleanLogExercise = ex => ({
   name: ex.name.trim(), sets: (ex.sets || []).map(st => ({ weight: st.weight ?? null, reps: st.reps ?? null })),
@@ -60,6 +62,7 @@ for (const w of spec.workouts || []) {
   for (const ex of w.exercises || []) {
     if (!ex.name?.trim()) problems.push(`"${w.name}": exercise without a name`);
     if (cleanVideoLink(ex.video) === null) problems.push(`"${w.name}" / ${ex.name}: bad video link "${ex.video}"`);
+    if (ex.demo && !isDemoId(ex.demo)) problems.push(`"${w.name}" / ${ex.name}: bad demo id "${ex.demo}"`);
   }
 }
 for (const p of spec.plan || []) {
@@ -84,6 +87,7 @@ for (const u of upd.workouts || []) {
   for (const ex of u.exercises || []) {
     if (!ex.name?.trim()) problems.push(`update workout ${u.id}: exercise without a name`);
     if (cleanVideoLink(ex.video) === null) problems.push(`update workout ${u.id} / ${ex.name}: bad video link "${ex.video}"`);
+    if (ex.demo && !isDemoId(ex.demo)) problems.push(`update workout ${u.id} / ${ex.name}: bad demo id "${ex.demo}"`);
   }
 }
 for (const u of upd.plan || []) if ('date' in u && !isDate(u.date)) problems.push(`update plan ${u.id}: bad date "${u.date}"`);

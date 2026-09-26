@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { countDoneSets, durationMinutes, formatSet, sessionToLog, swapExercise, normalizeName, videoUrl } from './session';
+import { countDoneSets, durationMinutes, formatSet, sessionToLog, swapExercise, normalizeName, videoUrl, demoUrl, DEMO_CREDIT_URL } from './session';
 import { newRecords } from './records';
 import { shortDate, todayKey } from './dates';
 import { countOf } from './hebrew';
@@ -10,10 +10,13 @@ import { withCode } from './errors';
 // which App persists to localStorage. The summary shows new personal records
 // (against logs, newest first) and can date the workout to a past day.
 // An exercise can be swapped for this session only, before any of its sets
-// is done.
+// is done. "▶ הדגמה" shows the exercise's 3D animation inside the app; with
+// no animation (or when it can't load), "▶ סרטון" opens YouTube instead.
 export default function WorkoutSession({ session, logs, knownNames = new Map(), onChange, onFinish, onDiscard }) {
   const [finishing, setFinishing] = useState(false);
   const [swapName, setSwapName] = useState(null); // null = not swapping
+  const [showDemo, setShowDemo] = useState(false); // stays open from one exercise to the next
+  const [failedDemo, setFailedDemo] = useState(null);
   const [confirmExit, setConfirmExit] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
@@ -22,6 +25,7 @@ export default function WorkoutSession({ session, logs, knownNames = new Map(), 
   const idx = Math.min(session.current, total - 1);
   const ex = session.exercises[idx];
   const doneSets = countDoneSets(session);
+  const demo = ex && ex.demo !== failedDemo ? demoUrl(ex.demo) : null;
 
   const setExercise = (i, fn) =>
     onChange({ ...session, exercises: session.exercises.map((e, j) => (j === i ? fn(e) : e)) });
@@ -140,7 +144,13 @@ export default function WorkoutSession({ session, logs, knownNames = new Map(), 
       <div className="card">
         <div className="plan-row">
           <span className="muted" style={{ flex: 1 }}>תרגיל {idx + 1} מתוך {total}</span>
-          <a className="video-link" href={videoUrl(ex.name, ex.video)} target="_blank" rel="noopener noreferrer">▶ סרטון</a>
+          {demo ? (
+            <button className="video-link" onClick={() => setShowDemo(v => !v)} aria-expanded={showDemo}>
+              {showDemo ? 'הסתרת ההדגמה' : '▶ הדגמה'}
+            </button>
+          ) : (
+            <a className="video-link" href={videoUrl(ex.name, ex.video)} target="_blank" rel="noopener noreferrer">▶ סרטון</a>
+          )}
           {swapName === null && !ex.sets.some(s => s.done) && (
             <button className="btn btn-ghost btn-small" onClick={() => setSwapName('')}>החלפת תרגיל</button>
           )}
@@ -158,6 +168,12 @@ export default function WorkoutSession({ session, logs, knownNames = new Map(), 
               <button className="btn btn-primary btn-small" onClick={swap}>החלפה</button>
               <button className="btn btn-ghost btn-small" onClick={() => { setSwapName(null); setError(''); }}>ביטול</button>
             </div>
+          </div>
+        )}
+        {demo && showDemo && (
+          <div className="demo">
+            <img src={demo} alt={`הדגמה: ${ex.name}`} width="180" height="180" onError={() => setFailedDemo(ex.demo)} />
+            <a className="demo-credit" href={DEMO_CREDIT_URL} target="_blank" rel="noopener noreferrer">אנימציה: AscendAPI</a>
           </div>
         )}
         {target && <div className="muted">יעד: {target}</div>}

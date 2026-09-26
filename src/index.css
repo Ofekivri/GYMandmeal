@@ -99,7 +99,10 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .check.on { background: #2e7d32; border-color: #2e7d32; color: #fff; }
 .history-ex { padding: 6px 0; border-top: 1px solid var(--border); }
 .btn-small { padding: 6px 10px; font-size: 14px; }
-.video-link { color: var(--accent); text-decoration: none; font-size: 14px; font-weight: 600; padding: 6px 4px; }
+.video-link { color: var(--accent); text-decoration: none; font-size: 14px; font-weight: 600; padding: 6px 4px; background: none; border: 0; cursor: pointer; font-family: inherit; }
+.demo { display: flex; flex-direction: column; align-items: center; gap: 4px; margin: 8px 0; }
+.demo img { width: 180px; height: 180px; border-radius: 10px; background: #fff; }
+.demo-credit { color: var(--muted); font-size: 12px; text-decoration: none; }
 .toast { position: fixed; bottom: calc(16px + env(safe-area-inset-bottom)); inset-inline: 16px; max-width: 448px; margin: 0 auto; box-shadow: 0 4px 16px rgba(0,0,0,.12); z-index: 10; }
 
 .section-title { font-size: 15px; font-weight: 600; color: var(--muted); margin: 0 0 8px; }
