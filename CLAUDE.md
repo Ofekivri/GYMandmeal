@@ -50,6 +50,13 @@ A meal is eaten when `eatenAt` is set. `actual` is set when something else was e
 - Exercises are free text (no shared exercise library). The editor suggests names already used (`<datalist>`), and a name that matches one ignoring case and spaces is saved with the existing spelling.
 - All UI copy is in Hebrew. Use gender-neutral plural imperatives ("נסו שוב").
 
+## Pushing data from Claude Code (scripts/)
+Ofek describes a program in chat, and Claude writes it straight into a trainee's account (no import UI):
+1. One-time setup: Ofek runs `node scripts/login.mjs ofekivri8@gmail.com` himself and types his password. The password is never seen or stored. The refresh token is saved to `~/.config/gymandmeal/credentials.json` (0600, outside git).
+2. Claude writes a spec JSON to the scratchpad (format at the top of `scripts/push.mjs`: trainee, workouts, plan, meals), then runs `node scripts/push.mjs spec.json --dry-run`, shows the summary, and runs it again without `--dry-run`.
+3. Writes go through the Firestore REST API as the admin user, so the normal rules apply. Workouts are matched by name (updated if they exist). Plan items and meals are skipped if they're already there.
+Never commit the credentials file or print tokens.
+
 ## Service worker rollback
 If `sw.js` ever misbehaves, replace its contents with the following and deploy. Phones pick it up on the next open:
 ```js
