@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { countDoneSets, durationMinutes, formatSet, sessionToLog } from './session';
+import { countDoneSets, durationMinutes, formatSet, sessionToLog, swapExercise, normalizeName } from './session';
 import { newRecords } from './records';
 import { shortDate, todayKey } from './dates';
 import { countOf } from './hebrew';
@@ -9,8 +9,11 @@ import { withCode } from './errors';
 // a set done. Only done sets are saved. Every change goes through onChange,
 // which App persists to localStorage. The summary shows new personal records
 // (against logs, newest first) and can date the workout to a past day.
-export default function WorkoutSession({ session, logs, onChange, onFinish, onDiscard }) {
+// An exercise can be swapped for this session only, before any of its sets
+// is done.
+export default function WorkoutSession({ session, logs, knownNames = new Map(), onChange, onFinish, onDiscard }) {
   const [finishing, setFinishing] = useState(false);
+  const [swapName, setSwapName] = useState(null); // null = not swapping
   const [confirmExit, setConfirmExit] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
@@ -26,7 +29,17 @@ export default function WorkoutSession({ session, logs, onChange, onFinish, onDi
     setExercise(idx, e => ({ ...e, sets: e.sets.map((s, k) => (k === si ? { ...s, ...fields } : s)) }));
   const addSet = () => setExercise(idx, e => ({ ...e, sets: [...e.sets, { ...e.sets[e.sets.length - 1], done: false }] }));
   const removeSet = () => setExercise(idx, e => (e.sets.length > 1 ? { ...e, sets: e.sets.slice(0, -1) } : e));
-  const goTo = i => { setError(''); onChange({ ...session, current: i }); };
+  const goTo = i => { setError(''); setSwapName(null); onChange({ ...session, current: i }); };
+
+  // Saved with the spelling already in use, as in the workout editor.
+  const swap = () => {
+    const typed = swapName.trim().replace(/\s+/g, ' ');
+    if (!typed) return setError('כתבו את שם התרגיל החדש.');
+    const name = knownNames.get(normalizeName(typed)) || typed;
+    setError('');
+    setSwapName(null);
+    if (normalizeName(name) !== normalizeName(ex.name)) setExercise(idx, e => swapExercise(e, name, logs));
+  };
 
   const today = todayKey();
 
@@ -125,8 +138,27 @@ export default function WorkoutSession({ session, logs, onChange, onFinish, onDi
       </div>
 
       <div className="card">
-        <div className="muted">תרגיל {idx + 1} מתוך {total}</div>
+        <div className="plan-row">
+          <span className="muted" style={{ flex: 1 }}>תרגיל {idx + 1} מתוך {total}</span>
+          {swapName === null && !ex.sets.some(s => s.done) && (
+            <button className="btn btn-ghost btn-small" onClick={() => setSwapName('')}>החלפת תרגיל</button>
+          )}
+        </div>
         <div style={{ fontSize: 20, fontWeight: 700, margin: '2px 0 4px' }}>{ex.name}</div>
+        {swapName !== null && (
+          <div style={{ margin: '8px 0' }}>
+            <datalist id="swap-exercise-names">
+              {[...knownNames.values()].map(n => <option key={n} value={n} />)}
+            </datalist>
+            <input className="input" list="swap-exercise-names" value={swapName} placeholder="שם התרגיל החדש"
+              aria-label="שם התרגיל החדש" autoFocus onChange={e => setSwapName(e.target.value)}
+              onKeyDown={e => { if (e.key === 'Enter') swap(); }} />
+            <div className="plan-actions">
+              <button className="btn btn-primary btn-small" onClick={swap}>החלפה</button>
+              <button className="btn btn-ghost btn-small" onClick={() => { setSwapName(null); setError(''); }}>ביטול</button>
+            </div>
+          </div>
+        )}
         {target && <div className="muted">יעד: {target}</div>}
         {ex.note && <div className="muted">{ex.note}</div>}
         {ex.last && (

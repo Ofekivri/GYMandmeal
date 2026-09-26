@@ -24,7 +24,7 @@ It uses the same Firebase project as ACL-Tracker. Security rules live in that re
 - `src/DayMeals.jsx`: a day's meals: add, edit, "אכלתי" / "אכלתי משהו אחר", and copy the day's meals to another date
 - `src/meals.js`: meal slots, sorting, duplicate check, and autocomplete suggestions
 - `src/session.js`: pure logic for a workout in progress (build from a template and last time's sets, convert to a log, localStorage draft)
-- `src/WorkoutSession.jsx`: doing a strength workout, one exercise at a time. The summary shows new personal records and has a date field (log a past day)
+- `src/WorkoutSession.jsx`: doing a strength workout, one exercise at a time. The summary shows new personal records and has a date field (log a past day). "החלפת תרגיל" swaps an exercise for this session only (`swapExercise`)
 - `src/ActivitySession.jsx`: finishing an activity workout (Pilates, a class, a run): effort 1–10, minutes, a note and the date, with no sets
 - `src/History.jsx`: finished workouts with every set (records marked 🏆), plus a "by exercise" view (`Progress.jsx`: a small SVG chart and a list). Editing a log is `LogEditor.jsx`; the admin's note on a trainee's log is `CoachNote.jsx`. Deleting a log undoes its plan item
 - `src/records.js`: personal records and per-exercise progress, computed on the device from the loaded logs
@@ -56,6 +56,7 @@ A meal is eaten when `eatenAt` is set. `actual` is set when something else was e
 - Date planner: a week strip, and workouts are placed by hand. Nothing is auto-scheduled and there's no recurrence ("copy last week" instead).
 - A missed workout stays on its date as "not done", with a one-tap "move to today".
 - Logging is weight × reps per set, showing last time's values.
+- An exercise can be swapped mid-workout (a busy machine, say) until one of its sets is marked done. The swap applies to that session only: the log gets the new name and the workout template keeps the original. Target weight and note are dropped because they belonged to the original.
 - A personal record means a heavier weight than ever before, or the same top weight for more reps (no weight: more reps). The first time an exercise is logged sets no record.
 - Coach notes are one-way: only the admin writes them, on someone else's log. Trainees don't reply in the app.
 - Workouts have a `kind`. `strength` (the default; a missing kind means strength) logs sets. `activity` (e.g. Pilates machines) has no exercises and logs `effort` (RPE 1–10) plus `durationMin`.

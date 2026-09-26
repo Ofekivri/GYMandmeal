@@ -190,6 +190,7 @@ export default function App() {
           key={session.startedAt}
           session={session}
           logs={logs}
+          knownNames={knownExerciseNames(workouts, logs)}
           onChange={updateSession}
           onFinish={finishCurrentSession}
           onDiscard={() => updateSession(null)}

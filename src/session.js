@@ -49,24 +49,37 @@ export function buildSession({ traineeUid, workout, planItem, logs }) {
     note: '',
     exercises: (workout.exercises || []).map(ex => {
       const last = lastSetsFor(logs, ex.name);
-      const count = Math.max(1, ex.sets || last?.sets.length || 3);
+      const target = { sets: ex.sets, reps: ex.reps, weight: ex.weight };
       return {
         name: ex.name,
-        target: { sets: ex.sets, reps: ex.reps, weight: ex.weight },
+        target,
         note: ex.note || '',
         last,
-        // Prefill: last time's weight for the same set, else the target weight.
-        sets: Array.from({ length: count }, (_, i) => {
-          const prev = last?.sets[i] || last?.sets[last.sets.length - 1];
-          return {
-            weight: str(prev?.weight ?? ex.weight),
-            reps: str(ex.reps ?? prev?.reps),
-            done: false,
-          };
-        }),
+        sets: prefillSets(Math.max(1, ex.sets || last?.sets.length || 3), last, target),
       };
     }),
   };
+}
+
+// Prefill: last time's weight for the same set, else the target weight.
+function prefillSets(count, last, target) {
+  return Array.from({ length: count }, (_, i) => {
+    const prev = last?.sets[i] || last?.sets[last.sets.length - 1];
+    return {
+      weight: str(prev?.weight ?? target.weight),
+      reps: str(target.reps ?? prev?.reps),
+      done: false,
+    };
+  });
+}
+
+// Swaps an exercise for this session only (a busy machine, say); the workout
+// itself keeps the original. The target weight and the note belonged to the
+// original, so the new exercise starts from its own last time.
+export function swapExercise(ex, name, logs) {
+  const last = lastSetsFor(logs, name);
+  const target = { ...ex.target, weight: null };
+  return { ...ex, name, target, note: '', last, sets: prefillSets(ex.sets.length, last, target) };
 }
 
 // "" → null, "12,5" → 12.5.
