@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { countDoneSets, durationMinutes, formatSet } from './session';
 import { shortDate } from './dates';
 import { countOf } from './hebrew';
+import { withCode } from './errors';
 
 // Doing a workout: one exercise at a time, weight × reps per set, ✓ to mark
 // a set done. Only done sets are saved. Every change goes through onChange,
@@ -33,7 +34,7 @@ export default function WorkoutSession({ session, onChange, onFinish, onDiscard 
       await onFinish();
     } catch (err) {
       console.error('[session] save failed', err);
-      setError('השמירה נכשלה. האימון עדיין שמור במכשיר, נסו שוב.');
+      setError(withCode('השמירה נכשלה. האימון עדיין שמור במכשיר, נסו שוב.', err));
       setBusy(false);
     }
   };

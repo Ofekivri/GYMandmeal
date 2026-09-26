@@ -11,12 +11,17 @@ const firebaseConfig = {
   appId: import.meta.env.VITE_FIREBASE_APP_ID,
 };
 
-const app = initializeApp(firebaseConfig);
-export const auth = getAuth(app);
-auth.languageCode = 'he'; // Google popup + reset emails in Hebrew
+// False when the VITE_FIREBASE_* env vars weren't set at build time (e.g. a
+// new Vercel project). main.jsx then shows a setup message instead of
+// crashing into a white screen.
+export const firebaseConfigured = !!firebaseConfig.apiKey;
+
+const app = firebaseConfigured ? initializeApp(firebaseConfig) : null;
+export const auth = app && getAuth(app);
+if (auth) auth.languageCode = 'he'; // Google popup + reset emails in Hebrew
 // On-device cache: the app keeps working with a weak gym signal, and a
 // finished workout saved offline syncs once the phone is back online.
-export const db = initializeFirestore(app, {
+export const db = app && initializeFirestore(app, {
   localCache: persistentLocalCache({ tabManager: persistentMultipleTabManager() }),
 });
 export const googleProvider = new GoogleAuthProvider();

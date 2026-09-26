@@ -3,6 +3,7 @@ import { deleteLog } from './data';
 import { dayLabel } from './dates';
 import { durationMinutes, formatSet } from './session';
 import { setsCount } from './hebrew';
+import { withCode } from './errors';
 
 // Finished workouts, newest first. Tap to see every set.
 export default function History({ uid, logs, error }) {
@@ -18,7 +19,7 @@ export default function History({ uid, logs, error }) {
       setOpenId(null);
     } catch (err) {
       console.error('[history] delete failed', err);
-      setDeleteError('המחיקה נכשלה. נסו שוב.');
+      setDeleteError(withCode('המחיקה נכשלה. נסו שוב.', err));
     }
     setConfirmId(null);
   };

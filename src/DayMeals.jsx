@@ -3,6 +3,7 @@ import { addMeal, addMeals, updateMeal, deleteMeal } from './data';
 import { MEAL_SLOTS, slotLabel, nextSlot, sameMeal } from './meals';
 import { dayLabel } from './dates';
 import { mealsCount } from './hebrew';
+import { withCode } from './errors';
 
 // The nutrition half of the day view: free-text meals by slot. Anyone who
 // can see the day (trainee or admin) can plan, edit and check meals off.
@@ -27,7 +28,7 @@ export default function DayMeals({ uid, editorUid, date, today, meals, mealsByDa
       await fn();
     } catch (err) {
       console.error('[meals] write failed', err);
-      setError('הפעולה נכשלה. נסו שוב.');
+      setError(withCode('הפעולה נכשלה. נסו שוב.', err));
     }
   };
 

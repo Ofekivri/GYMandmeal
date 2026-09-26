@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { onAuthStateChanged, signOut } from 'firebase/auth';
 import { auth } from './firebase';
-import { fetchIsAdmin, ensureTrainee, fetchTrainees, listenWorkouts, listenLogs, finishSession } from './data';
+import { fetchIsAdmin, ensureTrainee, listenTrainees, listenWorkouts, listenLogs, finishSession } from './data';
 import { buildSession, sessionToLog, loadSession, storeSession, knownExerciseNames } from './session';
 import Login from './Login';
 import Planner from './Planner';
@@ -9,6 +9,7 @@ import WorkoutList from './WorkoutList';
 import WorkoutEditor from './WorkoutEditor';
 import WorkoutSession from './WorkoutSession';
 import History from './History';
+import { withCode } from './errors';
 
 // With no signal the save stays queued in Firestore's on-device cache; stop
 // waiting for the server after this long and let the trainee move on.
@@ -23,7 +24,7 @@ const TABS = [
 export default function App() {
   const [user, setUser] = useState(undefined); // undefined = still checking auth
   const [isAdmin, setIsAdmin] = useState(false);
-  const [trainees, setTrainees] = useState([]);
+  const [trainees, setTrainees] = useState(null); // admin only; null = loading
   const [activeUid, setActiveUid] = useState(null); // whose workouts we're looking at
   const [tab, setTab] = useState('plan');
   const [editing, setEditing] = useState(null); // null = list, {} = new, workout = edit
@@ -43,7 +44,7 @@ export default function App() {
     setWorkoutsError('');
     return listenWorkouts(activeUid, setWorkouts, err => {
       console.error('[workouts] listen failed', err);
-      setWorkoutsError('לא הצלחנו לטעון את האימונים. בדקו את החיבור ונסו שוב.');
+      setWorkoutsError(withCode('לא הצלחנו לטעון את האימונים. בדקו את החיבור ונסו שוב.', err));
       setWorkouts([]);
     });
   }, [activeUid]);
@@ -54,10 +55,23 @@ export default function App() {
     setLogsError('');
     return listenLogs(activeUid, setLogs, err => {
       console.error('[logs] listen failed', err);
-      setLogsError('לא הצלחנו לטעון את ההיסטוריה. בדקו את החיבור ונסו שוב.');
+      setLogsError(withCode('לא הצלחנו לטעון את ההיסטוריה. בדקו את החיבור ונסו שוב.', err));
       setLogs([]);
     });
   }, [activeUid]);
+
+  // Admin: live trainee list. Keeps the picked trainee if still there.
+  useEffect(() => {
+    if (!isAdmin || !user) return;
+    return listenTrainees(list => {
+      setTrainees(list);
+      setActiveUid(cur => (cur && list.some(t => t.uid === cur) ? cur : list[0]?.uid || null));
+    }, err => {
+      console.error('[trainees] listen failed', err);
+      setError(withCode('לא הצלחנו לטעון את רשימת המתאמנים.', err));
+      setTrainees([]);
+    });
+  }, [isAdmin, user]);
 
   // Resume a workout that was in progress on this device.
   useEffect(() => {
@@ -83,15 +97,9 @@ export default function App() {
     const admin = await fetchIsAdmin(u);
     setIsAdmin(admin);
     if (admin) {
-      // The admin manages trainees; their own training lives in the ACL Tracker.
-      try {
-        const list = await fetchTrainees();
-        setTrainees(list);
-        setActiveUid(list[0]?.uid || null);
-      } catch (err) {
-        console.error('[trainees] load failed', err);
-        setError('לא הצלחנו לטעון את רשימת המתאמנים.');
-      }
+      // The admin manages trainees (listener below); their own training
+      // lives in the ACL Tracker.
+      setTrainees(null);
     } else {
       try {
         await ensureTrainee(u);
@@ -136,7 +144,7 @@ export default function App() {
   if (!user) return <Login />;
 
   const firstName = (user.displayName || '').split(' ')[0];
-  const active = trainees.find(t => t.uid === activeUid);
+  const active = (trainees || []).find(t => t.uid === activeUid);
   const listTitle = isAdmin ? `האימונים של ${active?.name || ''}` : 'האימונים שלי';
   const inSession = session && session.traineeUid === activeUid;
 
@@ -147,7 +155,7 @@ export default function App() {
         <button className="btn btn-ghost" onClick={() => signOut(auth)}>התנתקות</button>
       </div>
 
-      {isAdmin && trainees.length > 0 && (
+      {isAdmin && trainees?.length > 0 && (
         <div className="switcher">
           <label htmlFor="trainee" className="muted">מתאמן/ת:</label>
           <select id="trainee" className="input" value={activeUid || ''}
@@ -159,7 +167,9 @@ export default function App() {
 
       {error && <div className="error" style={{ marginBottom: 12 }}>{error}</div>}
       
-      {isAdmin && trainees.length === 0 && !error && (
+      {isAdmin && trainees === null && !error && <p className="muted">טוען…</p>}
+
+      {isAdmin && trainees?.length === 0 && !error && (
         <div className="card">
           <div style={{ fontWeight: 600 }}>עוד אין מתאמנים</div>
           <div className="muted">שלחו להם את הקישור לאתר. אחרי ההתחברות הראשונה הם יופיעו כאן.</div>

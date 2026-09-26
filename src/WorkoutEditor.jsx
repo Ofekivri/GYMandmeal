@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { saveWorkout, deleteWorkout } from './data';
 import { normalizeName } from './session';
+import { withCode } from './errors';
 
 let nextKey = 0;
 const newRow = (ex = {}) => ({
@@ -65,7 +66,7 @@ export default function WorkoutEditor({ uid, editorUid, workout, knownNames, onD
       onDone();
     } catch (err) {
       console.error('[workout] save failed', err);
-      setError('השמירה נכשלה. נסו שוב.');
+      setError(withCode('השמירה נכשלה. נסו שוב.', err));
       setBusy(false);
     }
   };
@@ -78,7 +79,7 @@ export default function WorkoutEditor({ uid, editorUid, workout, knownNames, onD
       onDone();
     } catch (err) {
       console.error('[workout] delete failed', err);
-      setError('המחיקה נכשלה. נסו שוב.');
+      setError(withCode('המחיקה נכשלה. נסו שוב.', err));
       setBusy(false);
     }
   };

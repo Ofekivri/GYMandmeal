@@ -2,7 +2,7 @@
 // (see firestore.rules in the ACL-Tracker repo): the trainee owns it, the
 // admin can read + write all of it.
 import {
-  collection, doc, getDoc, getDocs, onSnapshot, setDoc, addDoc, updateDoc, deleteDoc, writeBatch,
+  collection, doc, getDoc, onSnapshot, setDoc, addDoc, updateDoc, deleteDoc, writeBatch,
   query, orderBy, limit, where,
 } from 'firebase/firestore';
 import { db } from './firebase';
@@ -28,11 +28,17 @@ export function ensureTrainee(user) {
   }, { merge: true });
 }
 
-export async function fetchTrainees() {
-  const snap = await getDocs(collection(db, 'trainees'));
-  return snap.docs
-    .map(d => ({ uid: d.id, ...d.data() }))
-    .sort((a, b) => (a.name || '').localeCompare(b.name || '', 'he'));
+// Live, so a trainee who signs up shows up for the admin without a reload.
+export function listenTrainees(onData, onError) {
+  return onSnapshot(
+    collection(db, 'trainees'),
+    snap => onData(
+      snap.docs
+        .map(d => ({ uid: d.id, ...d.data() }))
+        .sort((a, b) => (a.name || '').localeCompare(b.name || '', 'he')),
+    ),
+    onError,
+  );
 }
 
 // Live list of a trainee's workouts, oldest first.
@@ -68,11 +74,11 @@ export function deleteWorkout(uid, id) {
 // workoutName is copied in so the plan still reads right if the workout is
 // later renamed or deleted. Done = doneAt is set (phase 3 also sets logId).
 
-// Loads the whole plan. Fine at a few workouts a week; if it grows to
-// thousands of docs, switch to a date-range query.
-export function listenPlan(uid, onData, onError) {
+// Only plan items from sinceKey on, so every open doesn't re-read the whole
+// history (finished workouts stay in logs).
+export function listenPlan(uid, sinceKey, onData, onError) {
   return onSnapshot(
-    collection(db, 'trainees', uid, 'plan'),
+    query(collection(db, 'trainees', uid, 'plan'), where('date', '>=', sinceKey)),
     snap => onData(snap.docs.map(d => ({ id: d.id, ...d.data() }))),
     onError,
   );

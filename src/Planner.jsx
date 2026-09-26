@@ -4,9 +4,11 @@ import { exercisesCount, workoutsCount, mealsCount } from './hebrew';
 import { sortMeals, sameMeal, mealSuggestions } from './meals';
 import DayMeals from './DayMeals';
 import { todayKey, addDays, weekStart, weekDays, fromKey, shortDate, dayLabel, DAY_LETTERS } from './dates';
+import { withCode } from './errors';
 
 const MISSED_LOOKBACK_DAYS = 14;
-const MEALS_WINDOW_DAYS = 120;
+// How far back plan items and meals are loaded (keeps Firestore reads low).
+const WINDOW_DAYS = 120;
 
 // Week strip planner and day view. Workouts and meals are placed on dates by
 // hand — by the trainee or the admin — and the day view shows both, planned
@@ -27,9 +29,9 @@ export default function Planner({ uid, editorUid, workouts, onGoToLibrary, onSta
   useEffect(() => {
     setPlan(null);
     setError('');
-    return listenPlan(uid, setPlan, err => {
+    return listenPlan(uid, addDays(todayKey(), -WINDOW_DAYS), setPlan, err => {
       console.error('[plan] listen failed', err);
-      setError('לא הצלחנו לטעון את התכנון. בדקו את החיבור ונסו שוב.');
+      setError(withCode('לא הצלחנו לטעון את התכנון. בדקו את החיבור ונסו שוב.', err));
       setPlan([]);
     });
   }, [uid]);
@@ -37,9 +39,9 @@ export default function Planner({ uid, editorUid, workouts, onGoToLibrary, onSta
   useEffect(() => {
     setMeals(null);
     setMealsError('');
-    return listenMeals(uid, addDays(todayKey(), -MEALS_WINDOW_DAYS), setMeals, err => {
+    return listenMeals(uid, addDays(todayKey(), -WINDOW_DAYS), setMeals, err => {
       console.error('[meals] listen failed', err);
-      setMealsError('לא הצלחנו לטעון את הארוחות. בדקו את החיבור ונסו שוב.');
+      setMealsError(withCode('לא הצלחנו לטעון את הארוחות. בדקו את החיבור ונסו שוב.', err));
       setMeals([]);
     });
   }, [uid]);
@@ -72,7 +74,7 @@ export default function Planner({ uid, editorUid, workouts, onGoToLibrary, onSta
       await fn();
     } catch (err) {
       console.error('[plan] write failed', err);
-      setError('הפעולה נכשלה. נסו שוב.');
+      setError(withCode('הפעולה נכשלה. נסו שוב.', err));
     }
   };
 
