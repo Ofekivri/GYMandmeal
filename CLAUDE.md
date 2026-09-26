@@ -11,6 +11,8 @@ It uses the same Firebase project as ACL-Tracker. Security rules live in that re
 - `src/data.js`: all Firestore reads and writes
 - `src/dates.js`: local "YYYY-MM-DD" date helpers. Weeks start on Sunday. Never use `toISOString()` (it's UTC)
 - `src/Planner.jsx`: week strip and the combined day view (workouts and meals), missed workouts, copy last week (workouts and meals), start a workout
+- `src/Overview.jsx` + `src/weekSummary.js`: admin-only "סקירה" tab (the admin's default tab). One card per trainee with the week's workouts done/due, meals eaten/due, and missed workouts. Reads each trainee's week once with `fetchWeek`
+- `src/WeekNav.jsx`: week arrows shared by the planner and the overview
 - `src/DayMeals.jsx`: a day's meals: add, edit, "אכלתי" / "אכלתי משהו אחר", and copy the day's meals to another date
 - `src/meals.js`: meal slots, sorting, duplicate check, and autocomplete suggestions
 - `src/session.js`: pure logic for a workout in progress (build from a template and last time's sets, convert to a log, localStorage draft)
@@ -56,6 +58,9 @@ self.addEventListener('activate', e => e.waitUntil((async () => {
 })()));
 ```
 Bump `CACHE` in `sw.js` only if the caching strategy changes. Hashed assets never need it.
+
+## Gotchas
+- macOS is case-insensitive: never name a helper `foo.js` next to a component `Foo.jsx` (`./Foo` resolves to the .js file).
 
 ## Workflow
 Push directly to `main`; Vercel auto-deploys. Ask before touching `.env*`, secrets, or Firestore rules.

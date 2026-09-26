@@ -9,12 +9,14 @@ import WorkoutList from './WorkoutList';
 import WorkoutEditor from './WorkoutEditor';
 import WorkoutSession from './WorkoutSession';
 import History from './History';
+import Overview from './Overview';
 import { withCode } from './errors';
 
 // With no signal the save stays queued in Firestore's on-device cache; stop
 // waiting for the server after this long and let the trainee move on.
 const OFFLINE_SAVE_WAIT_MS = 5000;
 
+const ADMIN_TABS = [{ id: 'overview', label: 'סקירה' }];
 const TABS = [
   { id: 'plan', label: 'תכנון' },
   { id: 'workouts', label: 'אימונים' },
@@ -97,6 +99,7 @@ export default function App() {
     const admin = await fetchIsAdmin(u);
     setIsAdmin(admin);
     if (admin) {
+      setTab('overview');
       // The admin manages trainees (listener below); their own training
       // lives in the ACL Tracker.
       setTrainees(null);
@@ -155,7 +158,7 @@ export default function App() {
         <button className="btn btn-ghost" onClick={() => signOut(auth)}>התנתקות</button>
       </div>
 
-      {isAdmin && trainees?.length > 0 && (
+      {isAdmin && trainees?.length > 0 && tab !== 'overview' && (
         <div className="switcher">
           <label htmlFor="trainee" className="muted">מתאמן/ת:</label>
           <select id="trainee" className="input" value={activeUid || ''}
@@ -188,7 +191,7 @@ export default function App() {
 
       {activeUid && !inSession && !editing && (
         <div className="tabs" role="tablist">
-          {TABS.map(t => (
+          {[...(isAdmin ? ADMIN_TABS : []), ...TABS].map(t => (
             <button key={t.id} role="tab" aria-selected={tab === t.id} className={tab === t.id ? 'active' : ''}
               onClick={() => setTab(t.id)}>{t.label}</button>
           ))}
@@ -203,6 +206,11 @@ export default function App() {
           workout={editing.id ? editing : null}
           knownNames={knownExerciseNames(workouts, logs)}
           onDone={() => setEditing(null)}
+        />
+      ) : tab === 'overview' && isAdmin ? (
+        <Overview
+          trainees={trainees || []}
+          onOpen={uid => { setActiveUid(uid); setEditing(null); setTab('plan'); }}
         />
       ) : tab === 'plan' ? (
         <Planner

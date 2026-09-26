@@ -2,7 +2,7 @@
 // (see firestore.rules in the ACL-Tracker repo): the trainee owns it, the
 // admin can read + write all of it.
 import {
-  collection, doc, getDoc, onSnapshot, setDoc, addDoc, updateDoc, deleteDoc, writeBatch,
+  collection, doc, getDoc, getDocs, onSnapshot, setDoc, addDoc, updateDoc, deleteDoc, writeBatch,
   query, orderBy, limit, where,
 } from 'firebase/firestore';
 import { db } from './firebase';
@@ -215,4 +215,17 @@ export async function addMeals(uid, meals, editorUid) {
     });
   });
   await batch.commit();
+}
+
+// ─── Admin overview ────────────────────────────────────────────────────────
+// One trainee's plan items and meals between two dates (inclusive), read
+// once — the overview doesn't need live updates.
+export async function fetchWeek(uid, fromKey, toKey) {
+  const range = name => getDocs(query(
+    collection(db, 'trainees', uid, name),
+    where('date', '>=', fromKey), where('date', '<=', toKey),
+  ));
+  const [planSnap, mealsSnap] = await Promise.all([range('plan'), range('meals')]);
+  const rows = snap => snap.docs.map(d => ({ id: d.id, ...d.data() }));
+  return { plan: rows(planSnap), meals: rows(mealsSnap) };
 }

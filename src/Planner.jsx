@@ -3,7 +3,8 @@ import { listenPlan, addPlanItem, addPlanItems, updatePlanItem, deletePlanItem, 
 import { exercisesCount, workoutsCount, mealsCount } from './hebrew';
 import { sortMeals, sameMeal, mealSuggestions } from './meals';
 import DayMeals from './DayMeals';
-import { todayKey, addDays, weekStart, weekDays, fromKey, shortDate, dayLabel, DAY_LETTERS } from './dates';
+import WeekNav from './WeekNav';
+import { todayKey, addDays, weekStart, weekDays, fromKey, dayLabel, DAY_LETTERS } from './dates';
 import { withCode } from './errors';
 
 const MISSED_LOOKBACK_DAYS = 14;
@@ -146,16 +147,7 @@ export default function Planner({ uid, editorUid, workouts, onGoToLibrary, onSta
         </div>
       )}
 
-      <div className="week-nav">
-        <button className="btn btn-ghost" onClick={() => goToWeek(addDays(viewWeek, -7))} aria-label="שבוע קודם">→</button>
-        <div style={{ textAlign: 'center' }}>
-          <div style={{ fontWeight: 600 }}>{shortDate(days[0])} – {shortDate(days[6])}</div>
-          {viewWeek !== weekStart(today) && (
-            <button className="btn btn-ghost" style={{ padding: '0 6px', fontSize: 13 }} onClick={() => goToWeek(weekStart(today))}>חזרה להיום</button>
-          )}
-        </div>
-        <button className="btn btn-ghost" onClick={() => goToWeek(addDays(viewWeek, 7))} aria-label="שבוע הבא">←</button>
-      </div>
+      <WeekNav week={viewWeek} today={today} onChange={goToWeek} />
 
       <div className="week-strip">
         {days.map(key => {

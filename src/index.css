@@ -115,3 +115,9 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .chip { border: 1px solid var(--border); background: var(--card); border-radius: 999px; padding: 5px 12px; font-size: 13px; cursor: pointer; color: var(--muted); }
 .chip.on { background: var(--accent-bg); border-color: var(--accent); color: #1e3a8a; font-weight: 500; }
 .badge.different { background: #fff4e5; color: #8a4b00; }
+
+.overview-card { display: block; width: 100%; text-align: start; cursor: pointer; }
+.bar { height: 6px; background: #ebebe6; border-radius: 3px; overflow: hidden; margin-top: 4px; }
+.bar-fill { height: 100%; background: var(--accent); border-radius: 3px; }
+.bar-fill.full { background: #2e7d32; }
+.overview-missed { font-size: 13px; color: var(--danger); background: var(--danger-bg); border-radius: 8px; padding: 4px 8px; }
