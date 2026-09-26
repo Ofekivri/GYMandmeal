@@ -5,7 +5,7 @@ import {
 } from 'firebase/auth';
 import { auth, googleProvider } from './firebase';
 import { ensureTrainee } from './data';
-import { withCode } from './errors';
+import { withCode, BUILD_ID } from './errors';
 
 const AUTH_ERRORS = {
   'auth/invalid-credential': 'האימייל או הסיסמה שגויים.',
@@ -124,6 +124,7 @@ export default function Login() {
           )}
         </div>
       </div>
+      <div className="muted" style={{ fontSize: 11 }} dir="ltr">v {BUILD_ID}</div>
     </div>
   );
 }
