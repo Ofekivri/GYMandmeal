@@ -22,6 +22,27 @@ const str = v => (v == null ? '' : String(v));
 
 export const isActivity = workoutOrLog => workoutOrLog?.kind === 'activity';
 
+// How-to video for an exercise: the link set on it, else a YouTube search by
+// name. Only http(s) links are used, so a stored link can never run script.
+export function videoUrl(name, link) {
+  if (/^https?:\/\//i.test(link || '')) return link;
+  const q = /[\u0590-\u05FF]/.test(name) ? `${name} טכניקה` : `how to ${name}`;
+  return `https://www.youtube.com/results?search_query=${encodeURIComponent(q)}`;
+}
+
+// A typed video link as stored: "" when empty, https:// added when missing,
+// null when it isn't a web address.
+export function cleanVideoLink(value) {
+  const t = String(value || '').trim();
+  if (!t) return '';
+  try {
+    const url = new URL(/^https?:\/\//i.test(t) ? t : `https://${t}`);
+    return url.hostname.includes('.') ? url.href : null;
+  } catch {
+    return null;
+  }
+}
+
 // Effort scale 1–10 (RPE) for activity workouts.
 export const EFFORT_LABELS = { 1: 'קל מאוד', 2: 'קל', 3: 'קל', 4: 'בינוני', 5: 'בינוני', 6: 'בינוני-קשה', 7: 'קשה', 8: 'קשה', 9: 'קשה מאוד', 10: 'מקסימלי' };
 
@@ -54,6 +75,7 @@ export function buildSession({ traineeUid, workout, planItem, logs }) {
         name: ex.name,
         target,
         note: ex.note || '',
+        video: ex.video || '',
         last,
         sets: prefillSets(Math.max(1, ex.sets || last?.sets.length || 3), last, target),
       };
@@ -74,12 +96,12 @@ function prefillSets(count, last, target) {
 }
 
 // Swaps an exercise for this session only (a busy machine, say); the workout
-// itself keeps the original. The target weight and the note belonged to the
-// original, so the new exercise starts from its own last time.
+// itself keeps the original. The target weight, the note and the video link
+// belonged to the original, so the new exercise starts from its own last time.
 export function swapExercise(ex, name, logs) {
   const last = lastSetsFor(logs, name);
   const target = { ...ex.target, weight: null };
-  return { ...ex, name, target, note: '', last, sets: prefillSets(ex.sets.length, last, target) };
+  return { ...ex, name, target, note: '', video: '', last, sets: prefillSets(ex.sets.length, last, target) };
 }
 
 // "" → null, "12,5" → 12.5.

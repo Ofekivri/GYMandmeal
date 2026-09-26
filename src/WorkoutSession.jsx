@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { countDoneSets, durationMinutes, formatSet, sessionToLog, swapExercise, normalizeName } from './session';
+import { countDoneSets, durationMinutes, formatSet, sessionToLog, swapExercise, normalizeName, videoUrl } from './session';
 import { newRecords } from './records';
 import { shortDate, todayKey } from './dates';
 import { countOf } from './hebrew';
@@ -140,6 +140,7 @@ export default function WorkoutSession({ session, logs, knownNames = new Map(), 
       <div className="card">
         <div className="plan-row">
           <span className="muted" style={{ flex: 1 }}>תרגיל {idx + 1} מתוך {total}</span>
+          <a className="video-link" href={videoUrl(ex.name, ex.video)} target="_blank" rel="noopener noreferrer">▶ סרטון</a>
           {swapName === null && !ex.sets.some(s => s.done) && (
             <button className="btn btn-ghost btn-small" onClick={() => setSwapName('')}>החלפת תרגיל</button>
           )}

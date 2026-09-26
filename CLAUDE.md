@@ -37,7 +37,7 @@ It uses the same Firebase project as ACL-Tracker. Security rules live in that re
 ## Data model (`trainees/{uid}`, owner or admin only)
 ```
 trainees/{uid}                 { name, email, lastSeenAt }
-trainees/{uid}/workouts/{id}   { name, kind: strength|activity, durationMin, note, exercises: [{ name, sets, reps, weight, note }], createdAt, updatedAt, updatedBy }
+trainees/{uid}/workouts/{id}   { name, kind: strength|activity, durationMin, note, exercises: [{ name, sets, reps, weight, note, video }], createdAt, updatedAt, updatedBy }
 trainees/{uid}/plan/{id}       { date: "YYYY-MM-DD", workoutId, workoutName, doneAt, logId, createdAt, createdBy }
 trainees/{uid}/meals/{id}      { date, slot: breakfast|lunch|dinner|snack, text, eatenAt, actual, createdAt, createdBy }
 trainees/{uid}/logs/{id}       { kind, workoutId, workoutName, date, startedAt, finishedAt, note, planId, unplanned, loggedBy, effort, durationMin, exercises: [{ name, sets: [{ weight, reps }] }],
@@ -62,6 +62,7 @@ A meal is eaten when `eatenAt` is set. `actual` is set when something else was e
 - Workouts have a `kind`. `strength` (the default; a missing kind means strength) logs sets. `activity` (e.g. Pilates machines) has no exercises and logs `effort` (RPE 1–10) plus `durationMin`.
 - Nutrition is a meal plan per day with check-off, not a calorie counter. Meals are free text, and both the trainee and the admin can edit them. The planner's day view shows workouts and meals together.
 - Exercises are free text (no shared exercise library). The editor suggests names already used (`<datalist>`), and a name that matches one ignoring case and spaces is saved with the existing spelling.
+- Each exercise has a "▶ סרטון" link in the workout: its `video` link if one is set (http(s) only, cleaned by `cleanVideoLink`), otherwise a YouTube search by name (`videoUrl` in `session.js`). It opens in YouTube, outside the app, and a swapped exercise falls back to searching its new name. When pushing a program, Claude may set `video` only to links it has actually verified. Never make up YouTube IDs.
 - All UI copy is in Hebrew. Use gender-neutral plural imperatives ("נסו שוב").
 
 ## Working on trainee data from Claude Code (scripts/)

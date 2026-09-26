@@ -55,7 +55,7 @@ for (const w of workouts.sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0))
   }
   console.log(`  [${w.id}] ${w.name} · ${(w.exercises || []).length} exercises`);
   for (const ex of w.exercises || []) {
-    console.log(`      ${ex.name} ${num(ex.sets)}×${num(ex.reps)}${ex.weight ? ` @${ex.weight}` : ''}${ex.note ? ` (${ex.note})` : ''}`);
+    console.log(`      ${ex.name} ${num(ex.sets)}×${num(ex.reps)}${ex.weight ? ` @${ex.weight}` : ''}${ex.note ? ` (${ex.note})` : ''}${ex.video ? ` ▶ ${ex.video}` : ''}`);
   }
 }
 

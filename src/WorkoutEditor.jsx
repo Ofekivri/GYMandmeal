@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { saveWorkout, deleteWorkout } from './data';
-import { normalizeName } from './session';
+import { normalizeName, cleanVideoLink } from './session';
 import { withCode } from './errors';
 
 let nextKey = 0;
@@ -11,6 +11,7 @@ const newRow = (ex = {}) => ({
   reps: ex.reps != null ? String(ex.reps) : '10',
   weight: ex.weight != null ? String(ex.weight) : '',
   note: ex.note || '',
+  video: ex.video || '',
 });
 
 // "" → null, "12.5" → 12.5. Keeps empty fields out of the numbers.
@@ -54,11 +55,13 @@ export default function WorkoutEditor({ uid, editorUid, workout, knownNames, onD
   });
 
   const save = async () => {
-    const filled = rows.filter(r => r.name.trim() || r.weight || r.note.trim());
+    const filled = rows.filter(r => r.name.trim() || r.weight || r.note.trim() || r.video.trim());
     if (!name.trim()) return setError('תנו שם לאימון.');
     if (kind === 'strength') {
       if (filled.some(r => !r.name.trim())) return setError('לכל תרגיל צריך שם.');
       if (filled.length === 0) return setError('הוסיפו לפחות תרגיל אחד.');
+      const badLink = filled.findIndex(r => cleanVideoLink(r.video) === null);
+      if (badLink >= 0) return setError(`הקישור לסרטון בתרגיל ${rows.indexOf(filled[badLink]) + 1} לא תקין. הדביקו כתובת מלאה, למשל מיוטיוב.`);
     }
 
     setError('');
@@ -76,6 +79,7 @@ export default function WorkoutEditor({ uid, editorUid, workout, knownNames, onD
           reps: toNumber(r.reps),
           weight: toNumber(r.weight),
           note: r.note.trim(),
+          video: cleanVideoLink(r.video),
         })),
       }, editorUid);
       onDone();
@@ -168,6 +172,9 @@ export default function WorkoutEditor({ uid, editorUid, workout, knownNames, onD
             </div>
             <input className="input" value={r.note} placeholder="הערה (לא חובה)" aria-label="הערה"
               onChange={e => updateRow(r.key, 'note', e.target.value)} />
+            <input className="input" dir="ltr" inputMode="url" value={r.video} aria-label="קישור לסרטון הדגמה"
+              placeholder="קישור לסרטון (לא חובה, אחרת חיפוש ביוטיוב)"
+              onChange={e => updateRow(r.key, 'video', e.target.value)} />
           </div>
         ))}
         <button className="btn btn-block btn-dashed" onClick={() => setRows(rs => [...rs, newRow()])}>+ הוספת תרגיל</button>

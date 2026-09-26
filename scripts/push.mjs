@@ -7,7 +7,7 @@
 // {
 //   "trainee": "נופר",                        // part of the name or email
 //   "workouts": [                              // created, or updated if the name exists
-//     { "name": "אימון A · רגליים", "exercises": [{ "name": "סקוואט", "sets": 3, "reps": 10, "weight": 30, "note": "" }] },
+//     { "name": "אימון A · רגליים", "exercises": [{ "name": "סקוואט", "sets": 3, "reps": 10, "weight": 30, "note": "", "video": "https://youtu.be/…" }] },
 //     { "name": "פילאטיס מכשירים", "kind": "activity", "durationMin": 50, "note": "רפורמר" }
 //   ],
 //   "plan":  [{ "date": "2026-09-28", "workout": "אימון A · רגליים" }],   // skipped if already on that day
@@ -28,6 +28,7 @@
 import { readFileSync } from 'node:fs';
 import { listDocs, getDoc, createDoc, updateDoc, listByDate, commit, openTrainee, norm } from './lib.mjs';
 import { todayKey } from '../src/dates.js';
+import { cleanVideoLink } from '../src/session.js';
 
 const SLOTS = ['breakfast', 'lunch', 'dinner', 'snack'];
 const isDate = d => /^\d{4}-\d{2}-\d{2}$/.test(d);
@@ -43,6 +44,7 @@ const deleteCount = ['workouts', 'plan', 'meals', 'logs'].reduce((n, k) => n + (
 
 const cleanExercise = ex => ({
   name: ex.name.trim(), sets: ex.sets ?? null, reps: ex.reps ?? null, weight: ex.weight ?? null, note: ex.note || '',
+  video: cleanVideoLink(ex.video) || '',
 });
 const cleanLogExercise = ex => ({
   name: ex.name.trim(), sets: (ex.sets || []).map(st => ({ weight: st.weight ?? null, reps: st.reps ?? null })),
@@ -55,7 +57,10 @@ for (const w of spec.workouts || []) {
   if (!w.name?.trim()) problems.push('workout without a name');
   const activity = w.kind === 'activity';
   if (!activity && !(w.exercises || []).length) problems.push(`"${w.name}": strength workout needs exercises`);
-  for (const ex of w.exercises || []) if (!ex.name?.trim()) problems.push(`"${w.name}": exercise without a name`);
+  for (const ex of w.exercises || []) {
+    if (!ex.name?.trim()) problems.push(`"${w.name}": exercise without a name`);
+    if (cleanVideoLink(ex.video) === null) problems.push(`"${w.name}" / ${ex.name}: bad video link "${ex.video}"`);
+  }
 }
 for (const p of spec.plan || []) {
   if (!isDate(p.date)) problems.push(`plan: bad date "${p.date}"`);
@@ -76,7 +81,10 @@ for (const [kind, list] of Object.entries({ ...upd, ...Object.fromEntries(Object
 }
 for (const u of upd.workouts || []) {
   if ('name' in u && !u.name?.trim()) problems.push(`update workout ${u.id}: empty name`);
-  for (const ex of u.exercises || []) if (!ex.name?.trim()) problems.push(`update workout ${u.id}: exercise without a name`);
+  for (const ex of u.exercises || []) {
+    if (!ex.name?.trim()) problems.push(`update workout ${u.id}: exercise without a name`);
+    if (cleanVideoLink(ex.video) === null) problems.push(`update workout ${u.id} / ${ex.name}: bad video link "${ex.video}"`);
+  }
 }
 for (const u of upd.plan || []) if ('date' in u && !isDate(u.date)) problems.push(`update plan ${u.id}: bad date "${u.date}"`);
 for (const u of upd.meals || []) checkMeal(u, `update meal ${u.id}`);
