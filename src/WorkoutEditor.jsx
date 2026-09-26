@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { saveWorkout, deleteWorkout } from './data';
 import { normalizeName, cleanVideoLink, isDemoId } from './session';
+import { findExercise } from './exerciseLibrary';
 import { withCode } from './errors';
 
 let nextKey = 0;
@@ -175,14 +176,16 @@ export default function WorkoutEditor({ uid, editorUid, workout, knownNames, onD
             <input className="input" value={r.note} placeholder="הערה (לא חובה)" aria-label="הערה"
               onChange={e => updateRow(r.key, 'note', e.target.value)} />
             <input className="input" dir="ltr" inputMode="url" value={r.video} aria-label="קישור לסרטון הדגמה"
-              placeholder="קישור לסרטון (לא חובה, אחרת חיפוש ביוטיוב)"
+              placeholder="קישור לסרטון (לא חובה)"
               onChange={e => updateRow(r.key, 'video', e.target.value)} />
-            {r.demo && (
+            {r.demo ? (
               <div className="plan-row muted">
                 <span style={{ flex: 1 }}>יש לתרגיל אנימציית הדגמה</span>
                 <button className="btn btn-ghost btn-small" onClick={() => updateRow(r.key, 'demo', '')}>הסרה</button>
               </div>
-            )}
+            ) : findExercise(r.name)?.demo ? (
+              <div className="muted">יש אנימציית הדגמה מהמאגר</div>
+            ) : null}
           </div>
         ))}
         <button className="btn btn-block btn-dashed" onClick={() => setRows(rs => [...rs, newRow()])}>+ הוספת תרגיל</button>

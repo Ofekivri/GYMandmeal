@@ -8,7 +8,8 @@
 //   "trainee": "נופר",                        // part of the name or email
 //   "workouts": [                              // created, or updated if the name exists
 //     { "name": "אימון A · רגליים", "exercises": [{ "name": "סקוואט", "sets": 3, "reps": 10, "weight": 30, "note": "", "demo": "qXTaZnJ", "video": "https://youtu.be/…" }] },
-//     // demo: ExerciseDB animation id (find with scripts/demo.mjs), shown in the app; video: YouTube, used only without a demo
+//     // Names from src/exerciseLibrary.js get their demo automatically. Otherwise set
+//     // demo (ExerciseDB id, find with scripts/demo.mjs) or video (checked YouTube link).
 //     { "name": "פילאטיס מכשירים", "kind": "activity", "durationMin": 50, "note": "רפורמר" }
 //   ],
 //   "plan":  [{ "date": "2026-09-28", "workout": "אימון A · רגליים" }],   // skipped if already on that day
@@ -30,6 +31,7 @@ import { readFileSync } from 'node:fs';
 import { listDocs, getDoc, createDoc, updateDoc, listByDate, commit, openTrainee, norm } from './lib.mjs';
 import { todayKey } from '../src/dates.js';
 import { cleanVideoLink, isDemoId } from '../src/session.js';
+import { findExercise } from '../src/exerciseLibrary.js';
 
 const SLOTS = ['breakfast', 'lunch', 'dinner', 'snack'];
 const isDate = d => /^\d{4}-\d{2}-\d{2}$/.test(d);
@@ -162,6 +164,11 @@ for (const w of spec.workouts || []) {
     console.log(`  + workout created: ${data.name}${activity ? ' (activity)' : ` (${data.exercises.length} exercises)`}`);
   }
 }
+
+// Exercises the app will show without an animation or a checked video.
+const noDemo = [...(spec.workouts || []), ...(upd.workouts || [])].flatMap(w => (w.exercises || [])
+  .filter(ex => !ex.demo && !ex.video && !findExercise(ex.name)).map(ex => ex.name));
+if (noDemo.length) console.log(`  ! no demo (not in the library): ${[...new Set(noDemo)].join(', ')}`);
 
 // ─── Plan items ────────────────────────────────────────────────────────────
 // Only the spec's date range is read for the duplicate check.

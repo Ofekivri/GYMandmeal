@@ -23,6 +23,7 @@ It uses the same Firebase project as ACL-Tracker. Security rules live in that re
 - `src/WeekNav.jsx`: week arrows shared by the planner and the overview
 - `src/DayMeals.jsx`: a day's meals: add, edit, "אכלתי" / "אכלתי משהו אחר", and copy the day's meals to another date
 - `src/meals.js`: meal slots, sorting, duplicate check, and autocomplete suggestions
+- `src/exerciseLibrary.js`: the exercise library, 107 common exercises in Hebrew by muscle group, each with a checked `demo` (or `video`), plus aliases. `findExercise(name)` does a loose match
 - `src/session.js`: pure logic for a workout in progress (build from a template and last time's sets, convert to a log, localStorage draft)
 - `src/WorkoutSession.jsx`: doing a strength workout, one exercise at a time. The summary shows new personal records and has a date field (log a past day). "החלפת תרגיל" swaps an exercise for this session only (`swapExercise`)
 - `src/ActivitySession.jsx`: finishing an activity workout (Pilates, a class, a run): effort 1–10, minutes, a note and the date, with no sets
@@ -62,13 +63,14 @@ A meal is eaten when `eatenAt` is set. `actual` is set when something else was e
 - Coach notes are one-way: only the admin writes them, on someone else's log. Trainees don't reply in the app.
 - Workouts have a `kind`. `strength` (the default; a missing kind means strength) logs sets. `activity` (e.g. Pilates machines) has no exercises and logs `effort` (RPE 1–10) plus `durationMin`.
 - Nutrition is a meal plan per day with check-off, not a calorie counter. Meals are free text, and both the trainee and the admin can edit them. The planner's day view shows workouts and meals together.
-- Exercises are free text (no shared exercise library). The editor suggests names already used (`<datalist>`), and a name that matches one ignoring case and spaces is saved with the existing spelling.
+- Exercises are free text, backed by a built-in library (`src/exerciseLibrary.js`, a code file edited by Claude, with no Firestore and no UI to add entries). The editor and "החלפת תרגיל" suggest the trainee's own names first, then the library's (`<datalist>`). A name that matches one ignoring case and spaces is saved with the existing spelling.
 - Exercise demos: the animation comes first, and YouTube is only the fallback, because YouTube opens with ads.
   - `demo` is an ExerciseDB V1 exercise id. "▶ הדגמה" shows its 3D GIF (`static.exercisedb.dev/media/{id}.gif`, 180px) inside the workout, with the required "אנימציה: AscendAPI" credit. Only a plain id is accepted (`isDemoId`), so no arbitrary URL is ever loaded.
   - With no demo, or when the GIF fails to load, "▶ סרטון" opens YouTube: the `video` link if one is set (http(s) only, cleaned by `cleanVideoLink`), otherwise a search by name (`videoUrl` in `session.js`). A swapped exercise loses both and searches its new name.
   - The ExerciseDB free tier is for non-commercial use only. The app is for friends and nobody pays (Ofek, 2026-09-26). If that ever changes, move to a paid plan or to free-exercise-db (Unlicense, two photos per exercise).
-  - When pushing a program, Claude sets `demo` for every exercise it can (find ids with `node scripts/demo.mjs "<keyword>"`, which matches names containing the text; then open the GIF to confirm it's the same variation). The free tier has no plain bodyweight squat or hip thrust, so those get a checked YouTube `video`. It sets `video` only to YouTube links it has actually verified. Never make up ids.
-  - The editor keeps `demo` and can remove it, but can't pick a new one.
+  - A library match (name or alias, ignoring case, spaces and ׳/') gets the library's demo when the workout is shown (`buildSession`, `swapExercise`), so existing workouts need no migration. A demo stored on the exercise wins.
+  - When pushing a program, Claude uses library names so demos attach by themselves, and `push.mjs` flags exercises left without one. For anything new, Claude sets `demo` (find ids with `node scripts/demo.mjs "<keyword>"`, which matches names containing the text; then open the GIF to confirm it's the same variation). The free tier has no plain bodyweight squat or hip thrust, so those get a checked YouTube `video`. It sets `video` only to YouTube links it has actually verified. Never make up ids.
+  - The editor keeps a stored `demo` and can remove it, and shows "יש אנימציית הדגמה מהמאגר" for library matches. It can't pick an arbitrary new one. To grow the library, add a checked line to `src/exerciseLibrary.js`.
 - All UI copy is in Hebrew. Use gender-neutral plural imperatives ("נסו שוב").
 
 ## Working on trainee data from Claude Code (scripts/)

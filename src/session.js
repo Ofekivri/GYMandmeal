@@ -2,6 +2,7 @@
 // trainee's recent logs, kept in localStorage until it's saved or discarded
 // so a reload or a locked phone doesn't lose the sets already entered.
 import { todayKey } from './dates.js';
+import { EXERCISES, findExercise } from './exerciseLibrary.js';
 
 const STORAGE_PREFIX = 'gym_session_v1_';
 
@@ -78,13 +79,14 @@ export function buildSession({ traineeUid, workout, planItem, logs }) {
     note: '',
     exercises: (workout.exercises || []).map(ex => {
       const last = lastSetsFor(logs, ex.name);
+      const lib = findExercise(ex.name); // library demo when the exercise has none of its own
       const target = { sets: ex.sets, reps: ex.reps, weight: ex.weight };
       return {
         name: ex.name,
         target,
         note: ex.note || '',
-        video: ex.video || '',
-        demo: ex.demo || '',
+        video: ex.video || lib?.video || '',
+        demo: ex.demo || lib?.demo || '',
         last,
         sets: prefillSets(Math.max(1, ex.sets || last?.sets.length || 3), last, target),
       };
@@ -107,11 +109,15 @@ function prefillSets(count, last, target) {
 // Swaps an exercise for this session only (a busy machine, say); the workout
 // itself keeps the original. The target weight, the note, the video link and
 // the animation belonged to the original, so the new exercise starts from its
-// own last time.
+// own last time, with the library's demo if it has one.
 export function swapExercise(ex, name, logs) {
   const last = lastSetsFor(logs, name);
   const target = { ...ex.target, weight: null };
-  return { ...ex, name, target, note: '', video: '', demo: '', last, sets: prefillSets(ex.sets.length, last, target) };
+  const lib = findExercise(name);
+  return {
+    ...ex, name, target, note: '', video: lib?.video || '', demo: lib?.demo || '', last,
+    sets: prefillSets(ex.sets.length, last, target),
+  };
 }
 
 // "" → null, "12,5" → 12.5.
@@ -187,8 +193,9 @@ export function storeSession(uid, session) {
 }
 
 // Every exercise name the trainee has used, one spelling per name (workouts
-// first, then logs). Feeds autocomplete so "סקוואט" doesn't become
-// "סקוואט " or "Squat" in one workout and split the history.
+// first, then logs), plus the exercise library. Feeds autocomplete so
+// "סקוואט" doesn't become "סקוואט " or "Squat" in one workout and split the
+// history, and so library names (which come with a demo) are easy to pick.
 export function knownExerciseNames(workouts, logs) {
   const byKey = new Map();
   const add = name => {
@@ -197,5 +204,6 @@ export function knownExerciseNames(workouts, logs) {
   };
   for (const w of workouts || []) for (const ex of w.exercises || []) add(ex.name);
   for (const log of logs || []) for (const ex of log.exercises || []) add(ex.name);
+  for (const ex of EXERCISES) add(ex.name); // the library, after the trainee's own spellings
   return byKey;
 }
