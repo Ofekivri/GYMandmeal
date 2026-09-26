@@ -67,7 +67,7 @@ A meal is eaten when `eatenAt` is set. `actual` is set when something else was e
   - `demo` is an ExerciseDB V1 exercise id. "▶ הדגמה" shows its 3D GIF (`static.exercisedb.dev/media/{id}.gif`, 180px) inside the workout, with the required "אנימציה: AscendAPI" credit. Only a plain id is accepted (`isDemoId`), so no arbitrary URL is ever loaded.
   - With no demo, or when the GIF fails to load, "▶ סרטון" opens YouTube: the `video` link if one is set (http(s) only, cleaned by `cleanVideoLink`), otherwise a search by name (`videoUrl` in `session.js`). A swapped exercise loses both and searches its new name.
   - The ExerciseDB free tier is for non-commercial use only. The app is for friends and nobody pays (Ofek, 2026-09-26). If that ever changes, move to a paid plan or to free-exercise-db (Unlicense, two photos per exercise).
-  - When pushing a program, Claude sets `demo` for every exercise it can (find ids with `node scripts/demo.mjs "<english name>"`, then open the GIF to confirm it's the same variation). It sets `video` only to YouTube links it has actually verified. Never make up ids.
+  - When pushing a program, Claude sets `demo` for every exercise it can (find ids with `node scripts/demo.mjs "<keyword>"`, which matches names containing the text; then open the GIF to confirm it's the same variation). The free tier has no plain bodyweight squat or hip thrust, so those get a checked YouTube `video`. It sets `video` only to YouTube links it has actually verified. Never make up ids.
   - The editor keeps `demo` and can remove it, but can't pick a new one.
 - All UI copy is in Hebrew. Use gender-neutral plural imperatives ("נסו שוב").
 
