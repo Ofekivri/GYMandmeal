@@ -12,16 +12,18 @@ It uses the same Firebase project as ACL-Tracker. Security rules live in that re
 - Ask clarifying questions before building anything non-trivial, using clickable options when possible.
 - Linear: team "Psytohretpy app" (issues PSY-103 and up belong to this app). Open an issue for each feature, and mark it Done when it ships.
 - Always ask first: touching `.env*` or secrets, Firestore rules (they live in the ACL-Tracker repo and are pasted into the Firebase console by Ofek), deleting data, and anything that costs money.
-- Test before pushing: a production build, plus a throwaway mock harness (fake auth and in-memory `data.js`) for UI flows at phone size. Delete the harness before committing.
+- Test before pushing: a production build, plus a throwaway mock harness (fake auth and in-memory `data.js`) for UI flows at phone size. Delete the harness before committing. For Firestore writes, a harness outside the repo can run the real app and `data.js` against the Firebase emulators (`npx firebase-tools emulators:start --only firestore,auth` with ACL-Tracker's `firestore.rules`), with `./firebase` swapped for a copy that calls `connectFirestoreEmulator` / `connectAuthEmulator`.
 
 ## Files
 - `src/App.jsx`: auth, admin detection, trainee switcher, tabs (תכנון / אימונים), and the shared workouts listener
 - `src/data.js`: all Firestore reads and writes
 - `src/dates.js`: local "YYYY-MM-DD" date helpers. Weeks start on Sunday. Never use `toISOString()` (it's UTC)
-- `src/Planner.jsx`: week strip and the combined day view (workouts and meals), missed workouts, copy last week (workouts and meals), start a workout
+- `src/Planner.jsx`: week strip and the combined day view (workouts and meals), missed workouts, copy last week (workouts and meals), start a workout. A finished workout with a log has no "הסרה": it's removed by deleting its log in History, so the week and History can't drift apart
 - `src/Overview.jsx` + `src/weekSummary.js`: admin-only "סקירה" tab. The admin opens on their own plan, like any trainee. One card per trainee with the week's workouts done/due, meals eaten/due, and missed workouts. Reads each trainee's week once with `fetchWeek`
 - `src/WeekNav.jsx`: week arrows shared by the planner and the overview
-- `src/DayMeals.jsx`: a day's meals: add, edit, "אכלתי" / "אכלתי משהו אחר", and copy the day's meals to another date
+- `src/DayMeals.jsx`: a day's meals: add (or "הוספה + אכלתי" for today and earlier), edit, "אכלתי" / "אכלתי משהו אחר", a photo per meal, and copy the day's meals to another date
+- `src/photo.js`: shrinks a picked photo on the phone (longest side 1000px, JPEG data URL, ~100 KB)
+- `src/MealPhoto.jsx`: a meal photo's thumbnail (loaded only when shown) and the full-size viewer, which hosts "החלפת התמונה" / "הסרת התמונה"
 - `src/meals.js`: meal slots, sorting, duplicate check, and autocomplete suggestions
 - `src/exerciseLibrary.js`: the exercise library, 107 common exercises in Hebrew by muscle group, each with a checked `demo` (or `video`), plus aliases. `findExercise(name)` does a loose match
 - `src/session.js`: pure logic for a workout in progress (build from a template and last time's sets, convert to a log, localStorage draft)
@@ -40,7 +42,8 @@ It uses the same Firebase project as ACL-Tracker. Security rules live in that re
 trainees/{uid}                 { name, email, lastSeenAt, afterWorkoutMessage, afterWorkoutMessageFrom, afterWorkoutMessageShownAt }
 trainees/{uid}/workouts/{id}   { name, kind: strength|activity, durationMin, note, exercises: [{ name, sets, reps, weight, note, demo, video }], createdAt, updatedAt, updatedBy }
 trainees/{uid}/plan/{id}       { date: "YYYY-MM-DD", workoutId, workoutName, doneAt, logId, createdAt, createdBy }
-trainees/{uid}/meals/{id}      { date, slot: breakfast|lunch|dinner|snack, text, eatenAt, actual, createdAt, createdBy }
+trainees/{uid}/meals/{id}      { date, slot: breakfast|lunch|dinner|snack, text, eatenAt, actual, photoId, createdAt, createdBy }
+trainees/{uid}/mealPhotos/{id} { mealId, date, image (JPEG data URL), width, height, createdAt, createdBy }
 trainees/{uid}/logs/{id}       { kind, workoutId, workoutName, date, startedAt, finishedAt, note, planId, unplanned, loggedBy, effort, durationMin, exercises: [{ name, sets: [{ weight, reps }] }],
                                  coachNote, coachNoteAt, coachName, coachNoteSeenAt, editedAt, editedBy }
 ```
@@ -52,6 +55,7 @@ A workout in progress lives in localStorage (`gym_session_v1_{traineeUid}`) unti
 A coach note is new for the trainee while `coachNoteSeenAt < coachNoteAt`: a dot on the History tab and a badge on the log, cleared when they open it.
 `afterWorkoutMessage` is a one-time personal message from the admin, shown in a popup (`AfterWorkoutMessage.jsx`) to that trainee only, after their next workout finished or marked done on their own account. Closing it sets `afterWorkoutMessageShownAt`. There's no UI to write it; it's set from Claude Code (below).
 A meal is eaten when `eatenAt` is set. `actual` is set when something else was eaten; the plan text is kept and shown crossed out. Meals are read in a 120-day window (`listenMeals`) to keep Firestore reads under the free quota.
+A meal photo is its own doc in `mealPhotos`, and the meal keeps only `photoId` (missing or null means no photo), so the meals listener stays small. A photo is read only when its meal is shown, from the on-device cache after the first time (`fetchMealPhoto`), since a photo never changes: replacing it writes a new doc and deletes the old one in one batch. Deleting a meal deletes its photo (in the app and in `push.mjs`). A meal's `text` is empty when a photo stands in for it; copying meals copies text only and skips photo-only meals.
 `workoutName` is copied into each plan item so it still reads right after the workout is renamed or deleted.
 
 ## Product decisions
@@ -63,6 +67,8 @@ A meal is eaten when `eatenAt` is set. `actual` is set when something else was e
 - Coach notes are one-way: only the admin writes them, on someone else's log. Trainees don't reply in the app.
 - Workouts have a `kind`. `strength` (the default; a missing kind means strength) logs sets. `activity` (e.g. Pilates machines) has no exercises and logs `effort` (RPE 1–10) plus `durationMin`.
 - Nutrition is a meal plan per day with check-off, not a calorie counter. Meals are free text, and both the trainee and the admin can edit them. The planner's day view shows workouts and meals together.
+- Meal photos (Ofek, 2026-09-28): one photo per meal, added by the trainee or the admin, and it can stand in for the text. A photo on a meal for today or earlier marks it eaten (people photograph what they eat); a future meal's photo marks nothing. Removing a photo leaves the eaten mark as it is.
+  - Stored in Firestore as a ~100 KB data URL, not in Firebase Storage, which needs the paid Blaze plan. The rules already cover everything under `trainees/{uid}`, so no rules change was needed. Photos count toward Firestore's free 1 GiB of storage, which is shared with ACL-Tracker and holds thousands of them. If it ever fills up, move photos to Storage (with Ofek's OK on the cost) or clear old ones.
 - Exercises are free text, backed by a built-in library (`src/exerciseLibrary.js`, a code file edited by Claude, with no Firestore and no UI to add entries). The editor and "החלפת תרגיל" suggest the trainee's own names first, then the library's (`<datalist>`). A name that matches one ignoring case and spaces is saved with the existing spelling.
 - Exercise demos: the animation comes first, and YouTube is only the fallback, because YouTube opens with ads.
   - `demo` is an ExerciseDB V1 exercise id. "▶ הדגמה" shows its 3D GIF (`static.exercisedb.dev/media/{id}.gif`, 180px) inside the workout, with the required "אנימציה: AscendAPI" credit. Only a plain id is accepted (`isDemoId`), so no arbitrary URL is ever loaded.

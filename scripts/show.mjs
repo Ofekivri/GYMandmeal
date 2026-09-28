@@ -84,5 +84,5 @@ for (const l of logs.sort((a, b) => a.date.localeCompare(b.date) || a.finishedAt
 console.log(`\nMeals (${meals.length}):`);
 for (const m of meals.sort((a, b) => a.date.localeCompare(b.date) || SLOT_ORDER.indexOf(a.slot) - SLOT_ORDER.indexOf(b.slot))) {
   const status = m.actual ? `ate instead: ${m.actual}` : m.eatenAt ? 'eaten' : m.date < today ? 'not eaten' : '';
-  console.log(`  ${day(m.date)} ${m.slot} [${m.id}] ${m.text}${status ? ` · ${status}` : ''}`);
+  console.log(`  ${day(m.date)} ${m.slot} [${m.id}] ${m.text || '(photo only)'}${m.photoId ? ' 📷' : ''}${status ? ` · ${status}` : ''}`);
 }

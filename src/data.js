@@ -2,7 +2,7 @@
 // (see firestore.rules in the ACL-Tracker repo): the trainee owns it, the
 // admin can read + write all of it.
 import {
-  collection, doc, getDoc, getDocs, onSnapshot, setDoc, addDoc, updateDoc, deleteDoc, writeBatch,
+  collection, doc, getDoc, getDocFromCache, getDocs, onSnapshot, setDoc, addDoc, updateDoc, deleteDoc, writeBatch,
   query, orderBy, limit, where,
 } from 'firebase/firestore';
 import { db } from './firebase';
@@ -221,8 +221,9 @@ export function markCoachNoteSeen(uid, logId) {
 }
 
 // ─── Meals: free-text meals placed on a date ───────────────────────────────
-// { date: "YYYY-MM-DD", slot, text, eatenAt, actual, createdAt, createdBy }
+// { date: "YYYY-MM-DD", slot, text, eatenAt, actual, photoId, createdAt, createdBy }
 // Eaten = eatenAt is set. `actual` is what was eaten instead, if different.
+// text is empty when a photo stands in for it.
 
 // Only meals from sinceKey on: meals pile up ~30 a week per trainee, and
 // re-reading all of them on every open would eat the free read quota.
@@ -234,18 +235,28 @@ export function listenMeals(uid, sinceKey, onData, onError) {
   );
 }
 
-export function addMeal(uid, { date, slot, text }, editorUid) {
-  return addDoc(collection(db, 'trainees', uid, 'meals'), {
-    date, slot, text, eatenAt: null, actual: '', createdAt: Date.now(), createdBy: editorUid,
+// eaten: saved as already eaten. photo: from shrinkPhoto, saved with it.
+export async function addMeal(uid, { date, slot, text, eaten = false, photo = null }, editorUid) {
+  const batch = writeBatch(db);
+  const mealRef = doc(collection(db, 'trainees', uid, 'meals'));
+  batch.set(mealRef, {
+    date, slot, text, eatenAt: eaten ? Date.now() : null, actual: '',
+    photoId: photo ? addPhoto(batch, uid, { mealId: mealRef.id, date, photo }, editorUid) : null,
+    createdAt: Date.now(), createdBy: editorUid,
   });
+  await batch.commit();
 }
 
 export function updateMeal(uid, id, fields) {
   return updateDoc(doc(db, 'trainees', uid, 'meals', id), fields);
 }
 
-export function deleteMeal(uid, id) {
-  return deleteDoc(doc(db, 'trainees', uid, 'meals', id));
+// A meal's photo goes with it.
+export async function deleteMeal(uid, meal) {
+  const batch = writeBatch(db);
+  batch.delete(doc(db, 'trainees', uid, 'meals', meal.id));
+  if (meal.photoId) batch.delete(doc(db, 'trainees', uid, 'mealPhotos', meal.photoId));
+  await batch.commit();
 }
 
 // Adds several meals in one write (copy a day / copy last week).
@@ -256,6 +267,66 @@ export async function addMeals(uid, meals, editorUid) {
       date, slot, text, eatenAt: null, actual: '', createdAt: Date.now() + i, createdBy: editorUid,
     });
   });
+  await batch.commit();
+}
+
+// ─── Meal photos ───────────────────────────────────────────────────────────
+// trainees/{uid}/mealPhotos/{id}: { mealId, date, image, width, height, createdAt, createdBy }
+// image is a JPEG data URL (~100 KB, see photo.js). Each photo is its own doc
+// so the meals listener stays small: a photo is read only when its meal is
+// shown. A photo never changes (a new one is a new doc), so the copy on the
+// device is always good, and only the first view on a device hits the server.
+
+const PHOTOS_IN_MEMORY = 60;
+const photoSrcs = new Map(); // photoId → data URL, so a day seen before opens at once
+
+function remember(photoId, src) {
+  photoSrcs.set(photoId, src);
+  if (photoSrcs.size > PHOTOS_IN_MEMORY) photoSrcs.delete(photoSrcs.keys().next().value);
+}
+
+export const cachedMealPhoto = photoId => photoSrcs.get(photoId) || null;
+
+// The photo's data URL, or null if it's gone. Only an inline JPEG is shown,
+// so a stored value can never make the app load some other URL.
+export async function fetchMealPhoto(uid, photoId) {
+  const cached = photoSrcs.get(photoId);
+  if (cached) return cached;
+  const ref = doc(db, 'trainees', uid, 'mealPhotos', photoId);
+  let snap = await getDocFromCache(ref).catch(() => null);
+  if (!snap?.exists()) snap = await getDoc(ref);
+  const src = snap.exists() ? snap.data().image : null;
+  if (typeof src !== 'string' || !src.startsWith('data:image/jpeg;base64,')) return null;
+  remember(photoId, src);
+  return src;
+}
+
+// Adds a photo doc to a batch and returns its id.
+function addPhoto(batch, uid, { mealId, date, photo }, editorUid) {
+  const ref = doc(collection(db, 'trainees', uid, 'mealPhotos'));
+  batch.set(ref, {
+    mealId, date, image: photo.src, width: photo.width, height: photo.height,
+    createdAt: Date.now(), createdBy: editorUid,
+  });
+  remember(ref.id, photo.src); // shows at once, even before it's synced
+  return ref.id;
+}
+
+// Puts a photo on a meal, replacing its old one. eaten: also marks the meal
+// eaten, unless it already is.
+export async function setMealPhoto(uid, meal, { photo, eaten }, editorUid) {
+  const batch = writeBatch(db);
+  const fields = { photoId: addPhoto(batch, uid, { mealId: meal.id, date: meal.date, photo }, editorUid) };
+  if (eaten && !meal.eatenAt) Object.assign(fields, { eatenAt: Date.now(), actual: '' });
+  if (meal.photoId) batch.delete(doc(db, 'trainees', uid, 'mealPhotos', meal.photoId));
+  batch.update(doc(db, 'trainees', uid, 'meals', meal.id), fields);
+  await batch.commit();
+}
+
+export async function removeMealPhoto(uid, meal) {
+  const batch = writeBatch(db);
+  batch.delete(doc(db, 'trainees', uid, 'mealPhotos', meal.photoId));
+  batch.update(doc(db, 'trainees', uid, 'meals', meal.id), { photoId: null });
   await batch.commit();
 }
 

@@ -119,6 +119,13 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .chip { border: 1px solid var(--border); background: var(--card); border-radius: 999px; padding: 5px 12px; font-size: 13px; cursor: pointer; color: var(--muted); }
 .chip.on { background: var(--accent-bg); border-color: var(--accent); color: #1e3a8a; font-weight: 500; }
 .badge.different { background: #fff4e5; color: #8a4b00; }
+.meal-photo { display: block; margin-top: 8px; padding: 0; border: 0; background: none; cursor: pointer; }
+.meal-photo img, .meal-photo-loading, .photo-preview { display: block; width: 128px; height: 96px; object-fit: cover; border-radius: 8px; background: #ebebe6; }
+.photo-viewer { position: fixed; inset: 0; z-index: 20; background: rgba(0, 0, 0, .85); color: #fff; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; padding: 16px; }
+.photo-viewer img { max-width: 100%; max-height: 75vh; object-fit: contain; border-radius: 8px; }
+.photo-viewer .plan-actions { justify-content: center; margin-top: 0; }
+.photo-viewer .btn { color: var(--text); }
+.file-input { position: absolute; width: 1px; height: 1px; opacity: 0; overflow: hidden; pointer-events: none; }
 
 .overview-card { display: block; width: 100%; text-align: start; cursor: pointer; }
 .bar { height: 6px; background: #ebebe6; border-radius: 3px; overflow: hidden; margin-top: 4px; }

@@ -23,7 +23,7 @@
 //   },
 //   "delete": {                                // by [id]
 //     "workouts": ["…"],                       // also removes its not-done plan items from today on
-//     "plan": ["…"], "meals": ["…"],
+//     "plan": ["…"], "meals": ["…"],           // a meal's photo goes with it
 //     "logs": ["…"]                            // like deleting in History: its plan item goes back to "not done" (removed if unplanned)
 //   }
 // }
@@ -267,7 +267,8 @@ for (const { id, doc: p } of delPlan) {
 }
 for (const { id, doc: m } of delMeals) {
   writes.push({ delete: `${root}/meals/${id}` });
-  console.log(`  - meal ${m.date} ${m.slot} "${m.text}"`);
+  if (m.photoId) writes.push({ delete: `${root}/mealPhotos/${m.photoId}` });
+  console.log(`  - meal ${m.date} ${m.slot} "${m.text}"${m.photoId ? ' (and its photo)' : ''}`);
 }
 for (const { id, doc: l } of delLogs) {
   writes.push({ delete: `${root}/logs/${id}` });

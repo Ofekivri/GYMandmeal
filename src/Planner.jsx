@@ -14,7 +14,9 @@ const WINDOW_DAYS = 120;
 // Week strip planner and day view. Workouts and meals are placed on dates by
 // hand — by the trainee or the admin — and the day view shows both, planned
 // vs. done. A past, unfinished workout counts as missed and can be moved to
-// today in one tap.
+// today in one tap. A finished workout with a log has no "הסרה" here: it's
+// removed by deleting the log in History, which un-does its plan item too, so
+// the week and History can't drift apart.
 export default function Planner({ uid, editorUid, workouts, onGoToLibrary, onStart, onMarkedDone }) {
   const today = todayKey();
   const [plan, setPlan] = useState(null); // null = loading
@@ -104,7 +106,8 @@ export default function Planner({ uid, editorUid, workouts, onGoToLibrary, onSta
   const copyLastWeek = () => run(async () => {
     const prevDays = weekDays(addDays(viewWeek, -7));
     const sourceWorkouts = prevDays.flatMap(d => byDate[d] || []);
-    const sourceMeals = prevDays.flatMap(d => mealsByDate[d] || []);
+    // Text only: a meal that is only a photo has nothing to plan from.
+    const sourceMeals = prevDays.flatMap(d => mealsByDate[d] || []).filter(m => m.text);
     if (sourceWorkouts.length + sourceMeals.length === 0) return setInfo('אין אימונים או ארוחות בשבוע הקודם להעתקה.');
     const items = sourceWorkouts
       .map(item => ({ date: addDays(item.date, 7), workoutId: item.workoutId, workoutName: item.workoutName }))
@@ -188,21 +191,23 @@ export default function Planner({ uid, editorUid, workouts, onGoToLibrary, onSta
                 {item.doneAt && <span className="badge done">בוצע</span>}
                 {isMissed(item) && <span className="badge missed">לא בוצע</span>}
               </div>
-              {item.logId && <div className="muted">הפרטים שמורים בהיסטוריה.</div>}
+              {item.logId && <div className="muted">הפרטים שמורים בהיסטוריה. כדי להסיר את האימון, מחקו אותו משם.</div>}
               {!item.doneAt && !workout && <div className="muted">האימון הזה נמחק מרשימת האימונים.</div>}
-              <div className="plan-actions">
-                {item.doneAt ? (
-                  !item.logId && <button className="btn btn-ghost" onClick={() => run(() => updatePlanItem(uid, item.id, { doneAt: null }))}>ביטול הסימון</button>
-                ) : (
-                  <>
-                    {workout && <button className="btn btn-primary" onClick={() => onStart(workout, item)}>התחלת אימון</button>}
-                    <button className="btn" onClick={() => { run(() => updatePlanItem(uid, item.id, { doneAt: Date.now() })); onMarkedDone?.(); }}>סימון כבוצע</button>
-                    {isMissed(item) && <button className="btn" onClick={() => moveTo(item, today)}>העברה להיום</button>}
-                    <button className="btn btn-ghost" onClick={() => setMovingId(movingId === item.id ? null : item.id)}>העברה ליום אחר</button>
-                  </>
-                )}
-                <button className="btn btn-ghost" onClick={() => run(() => deletePlanItem(uid, item.id))}>הסרה</button>
-              </div>
+              {!item.logId && (
+                <div className="plan-actions">
+                  {item.doneAt ? (
+                    <button className="btn btn-ghost" onClick={() => run(() => updatePlanItem(uid, item.id, { doneAt: null }))}>ביטול הסימון</button>
+                  ) : (
+                    <>
+                      {workout && <button className="btn btn-primary" onClick={() => onStart(workout, item)}>התחלת אימון</button>}
+                      <button className="btn" onClick={() => { run(() => updatePlanItem(uid, item.id, { doneAt: Date.now() })); onMarkedDone?.(); }}>סימון כבוצע</button>
+                      {isMissed(item) && <button className="btn" onClick={() => moveTo(item, today)}>העברה להיום</button>}
+                      <button className="btn btn-ghost" onClick={() => setMovingId(movingId === item.id ? null : item.id)}>העברה ליום אחר</button>
+                    </>
+                  )}
+                  <button className="btn btn-ghost" onClick={() => run(() => deletePlanItem(uid, item.id))}>הסרה</button>
+                </div>
+              )}
               {movingId === item.id && (
                 <div className="field" style={{ marginTop: 8 }}>
                   <label htmlFor={`move-${item.id}`}>לאיזה יום?</label>
