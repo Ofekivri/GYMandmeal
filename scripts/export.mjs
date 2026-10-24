@@ -1,7 +1,7 @@
 // Export a trainee's training and nutrition to one readable Markdown file, for
 // review, coaching advice, or pasting into a chat:
-//   node scripts/export.mjs <trainee> [from] [to] [--out file.md] [--json]
-// The range defaults to the last 30 days. Default file: ~/Downloads/gymandmeal-<name>-<from>_<to>.md
+//   node scripts/export.mjs <trainee> [from] [to] [--all] [--out file.md] [--json]
+// The range defaults to the last 30 days; --all exports everything from the first record. Default file: ~/Downloads/gymandmeal-<name>-<from>_<to>.md
 // --json writes the raw docs instead (same range).
 import { writeFileSync } from 'node:fs';
 import { homedir } from 'node:os';
@@ -11,6 +11,7 @@ import { todayKey, addDays, fromKey, DAY_LETTERS } from '../src/dates.js';
 
 const args = process.argv.slice(2);
 const json = args.includes('--json');
+const all = args.includes('--all');
 const outIdx = args.indexOf('--out');
 const outArg = outIdx >= 0 ? args[outIdx + 1] : null;
 const [who, from0, to0] = args.filter((a, i) => !a.startsWith('--') && i !== outIdx + 1);
@@ -20,7 +21,7 @@ if (!who) fail('Usage: node scripts/export.mjs <trainee> [from] [to] [--out file
 
 const today = todayKey();
 const to = to0 || today;
-const from = from0 || addDays(to, -30);
+const from = all ? '2000-01-01' : from0 || addDays(to, -30);
 if (!isDate(from) || !isDate(to) || from > to) fail(`bad range "${from}" → "${to}" (use YYYY-MM-DD)`);
 
 const { s, trainee, root } = await openTrainee(who).catch(err => fail(err.message));
@@ -31,11 +32,13 @@ const [workouts, plan, logs, meals] = await Promise.all([
   listByDate(s, root, 'meals', from, to),
 ]);
 
+// --all: show the real first date instead of the query's lower bound
+const first = all ? [...plan, ...logs, ...meals].map(x => x.date).sort()[0] || to : from;
 const safeName = String(trainee.name || 'trainee').replace(/[^\p{L}\p{N}]+/gu, '-');
-const outPath = outArg || path.join(homedir(), 'Downloads', `gymandmeal-${safeName}-${from}_${to}.${json ? 'json' : 'md'}`);
+const outPath = outArg || path.join(homedir(), 'Downloads', `gymandmeal-${safeName}-${first}_${to}.${json ? 'json' : 'md'}`);
 
 if (json) {
-  writeFileSync(outPath, JSON.stringify({ trainee, from, to, workouts, plan, logs, meals }, null, 2));
+  writeFileSync(outPath, JSON.stringify({ trainee, from: first, to, workouts, plan, logs, meals }, null, 2));
   console.log(`✓ ${outPath}`);
   process.exit(0);
 }
@@ -61,7 +64,7 @@ const eaten = mealsDue.filter(m => m.eatenAt);
 const swapped = eaten.filter(m => m.actual);
 
 const L = [];
-L.push(`# ${trainee.name} · ${from} → ${to}`, '');
+L.push(`# ${trainee.name} · ${first} → ${to}`, '');
 L.push('## סיכום', '');
 L.push(`- אימונים מתוכננים שהגיע זמנם: ${due.length} · בוצעו: ${done.length} (${pct(done.length, due.length)}) · פוספסו: ${due.length - done.length}`);
 L.push(`- אימונים ביומן: ${logs.length}${logs.filter(l => l.unplanned).length ? ` (מהם ללא תכנון: ${logs.filter(l => l.unplanned).length})` : ''}`);
@@ -126,4 +129,4 @@ for (const d of mealDays) {
 
 writeFileSync(outPath, L.join('\n'));
 console.log(`✓ ${outPath}`);
-console.log(`  ${logs.length} אימונים · ${meals.length} ארוחות · ${from} → ${to}`);
+console.log(`  ${logs.length} אימונים · ${meals.length} ארוחות · ${first} → ${to}`);
