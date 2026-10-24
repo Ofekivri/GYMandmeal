@@ -16,6 +16,7 @@ import WorkoutEditor from './WorkoutEditor';
 import WorkoutSession from './WorkoutSession';
 import ActivitySession from './ActivitySession';
 import History from './History';
+import ExportButton from './ExportButton';
 import Overview from './Overview';
 import AfterWorkoutMessage from './AfterWorkoutMessage';
 import { withCode } from './errors';
@@ -194,6 +195,7 @@ export default function App() {
             onChange={e => { setActiveUid(e.target.value); setEditing(null); }}>
             {trainees.map(t => <option key={t.uid} value={t.uid}>{t.uid === user.uid ? `${t.name} (אני)` : t.name}</option>)}
           </select>
+          {active && <ExportButton key={activeUid} uid={activeUid} trainee={active} />}
         </div>
       )}
 

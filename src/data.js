@@ -342,3 +342,13 @@ export async function fetchWeek(uid, fromKey, toKey) {
   const rows = snap => snap.docs.map(d => ({ id: d.id, ...d.data() }));
   return { plan: rows(planSnap), meals: rows(mealsSnap) };
 }
+
+// ─── Export (admin) ────────────────────────────────────────────────────────
+// A trainee's whole plan, logs and meals, read once for "ייצוא נתונים". It
+// reads every doc (no date window), so it is a manual action, not a listener.
+export async function fetchAllForExport(uid) {
+  const all = name => getDocs(collection(db, 'trainees', uid, name));
+  const [planSnap, logsSnap, mealsSnap] = await Promise.all([all('plan'), all('logs'), all('meals')]);
+  const rows = snap => snap.docs.map(d => ({ id: d.id, ...d.data() }));
+  return { plan: rows(planSnap), logs: rows(logsSnap), meals: rows(mealsSnap) };
+}
