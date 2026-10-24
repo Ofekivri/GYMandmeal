@@ -4,6 +4,7 @@ import { newRecords } from './records';
 import { shortDate, todayKey } from './dates';
 import { countOf } from './hebrew';
 import { withCode } from './errors';
+import { EffortPicker } from './ActivitySession';
 
 // Doing a workout: one exercise at a time, weight × reps per set, ✓ to mark
 // a set done. Only done sets are saved. Every change goes through onChange,
@@ -49,6 +50,7 @@ export default function WorkoutSession({ session, logs, knownNames = new Map(), 
 
   const save = async () => {
     if (doneSets === 0) return setError('סמנו לפחות סט אחד כבוצע (✓) לפני השמירה.');
+    if (!session.effort) return setError('בחרו מד מאמץ לפני השמירה.');
     if (session.date > today) return setError('אי אפשר לרשום אימון בתאריך עתידי.');
     setError('');
     setBusy(true);
@@ -100,6 +102,10 @@ export default function WorkoutSession({ session, logs, knownNames = new Map(), 
                 </div>
               );
             })}
+          </div>
+          <div style={{ marginTop: 12 }}>
+            <div style={{ fontWeight: 600, marginBottom: 8 }}>מד מאמץ: כמה קשה היה האימון?</div>
+            <EffortPicker value={session.effort} onChange={effort => { setError(''); onChange({ ...session, effort }); }} />
           </div>
           <div className="field" style={{ marginTop: 12 }}>
             <label htmlFor="session-note">הערה לאימון (לא חובה)</label>

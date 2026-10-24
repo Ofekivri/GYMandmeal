@@ -54,6 +54,7 @@ export default function LogEditor({ uid, editorUid, log, knownNames, onDone }) {
         .filter(x => x.sets.length > 0);
       if (kept.some(x => !x.name)) return setError('לכל תרגיל צריך שם.');
       if (kept.length === 0) return setError('השאירו לפחות סט אחד, או מחקו את האימון מההיסטוריה.');
+      if (effort) fields.effort = effort;
       fields.exercises = kept.map(x => ({ ...x, name: knownNames.get(normalizeName(x.name)) || x.name }));
     }
 
@@ -91,6 +92,10 @@ export default function LogEditor({ uid, editorUid, log, knownNames, onDone }) {
         </>
       ) : (
         <div>
+          <div style={{ marginBottom: 10 }}>
+            <div className="muted" style={{ marginBottom: 6 }}>מד מאמץ (לא חובה)</div>
+            <EffortPicker value={effort} onChange={setEffort} />
+          </div>
           <datalist id="log-exercise-names">
             {[...knownNames.values()].map(n => <option key={n} value={n} />)}
           </datalist>

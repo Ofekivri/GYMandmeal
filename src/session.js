@@ -52,7 +52,8 @@ export function cleanVideoLink(value) {
   }
 }
 
-// Effort scale 1–10 (RPE) for activity workouts.
+// Effort scale 1–10 (RPE): required on every new workout, strength or activity.
+// Strength logs from before it was added have none.
 export const EFFORT_LABELS = { 1: 'קל מאוד', 2: 'קל', 3: 'קל', 4: 'בינוני', 5: 'בינוני', 6: 'בינוני-קשה', 7: 'קשה', 8: 'קשה', 9: 'קשה מאוד', 10: 'מקסימלי' };
 
 export function buildSession({ traineeUid, workout, planItem, logs }) {
@@ -71,6 +72,7 @@ export function buildSession({ traineeUid, workout, planItem, logs }) {
   }
   return {
     traineeUid,
+    effort: null,
     workoutId: workout.id,
     workoutName: workout.name,
     planId: planItem?.id || null,
@@ -154,6 +156,7 @@ export function sessionToLog(session) {
     startedAt,
     finishedAt,
     note: session.note.trim(),
+    effort: session.effort ?? null,
     exercises: session.exercises
       .map(ex => ({
         name: ex.name,

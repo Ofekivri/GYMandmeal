@@ -88,7 +88,7 @@ export default function History({ uid, editorUid, logs, error, isOwner, canCoach
                     {log.coachNote && !newNote && <span title="יש הערה" aria-label="יש הערה"> 💬</span>}
                   </div>
                   <div className="muted">
-                    {dayLabel(log.date)} · {activity ? `מאמץ ${log.effort}/10` : setsCount(sets)}{minutes != null && minutes < 300 ? ` · ${minutes} דק׳` : ''}
+                    {dayLabel(log.date)} · {activity ? `מאמץ ${log.effort}/10` : `${setsCount(sets)}${log.effort ? ` · מאמץ ${log.effort}/10` : ''}`}{minutes != null && minutes < 300 ? ` · ${minutes} דק׳` : ''}
                   </div>
                 </div>
                 {newNote && <span className="badge new">הערה חדשה</span>}
@@ -99,7 +99,7 @@ export default function History({ uid, editorUid, logs, error, isOwner, canCoach
               )}
               {open && mode !== 'edit' && (
                 <div style={{ marginTop: 10 }}>
-                  {activity && <div className="history-ex">מד מאמץ: {log.effort}/10 · {EFFORT_LABELS[log.effort]}</div>}
+                  {log.effort && <div className="history-ex">מד מאמץ: {log.effort}/10 · {EFFORT_LABELS[log.effort]}</div>}
                   {(log.exercises || []).map((e, i) => (
                     <div key={i} className="history-ex">
                       <div style={{ fontWeight: 500 }}>{e.name}</div>
