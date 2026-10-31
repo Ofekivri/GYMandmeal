@@ -28,7 +28,7 @@ const from = from0 || weekStart(today);
 const to = to0 || (from0 ? from0 : addDays(from, 6));
 if (!isDate(from) || !isDate(to) || from > to) fail(`bad range "${from}" → "${to}" (use YYYY-MM-DD)`);
 
-const { s, trainee, root } = await openTrainee(who).catch(err => fail(err.message));
+const { s, trainee, root, trainees } = await openTrainee(who).catch(err => fail(err.message));
 const [workouts, plan, logs, meals] = await Promise.all([
   listDocs(s, `${root}/workouts`),
   listByDate(s, root, 'plan', from, to),
@@ -45,6 +45,9 @@ const day = key => `${key} ${DAY_LETTERS[fromKey(key).getDay()]}`;
 const num = n => (n === null || n === undefined || n === '' ? '?' : n);
 const byDate = (a, b) => a.date.localeCompare(b.date) || (a.createdAt || 0) - (b.createdAt || 0);
 const SLOT_ORDER = ['breakfast', 'lunch', 'dinner', 'snack'];
+// When and by whom an item was added: items copied in one go share the same minute.
+const nameOf = uid => trainees.find(t => t.id === uid)?.name || (uid ? uid.slice(0, 6) : '?');
+const added = x => (x.createdAt ? `added ${new Date(x.createdAt).toLocaleString('he-IL', { dateStyle: 'short', timeStyle: 'medium' })} by ${nameOf(x.createdBy)}` : '');
 
 console.log(`${trainee.name} <${trainee.email}> · ${from} → ${to} · today ${today}\n`);
 
@@ -63,7 +66,7 @@ for (const w of workouts.sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0))
 console.log(`\nPlan (${plan.length}):`);
 for (const p of plan.sort(byDate)) {
   const status = p.doneAt ? `done${p.logId ? ` · log ${p.logId}` : ' (marked, no log)'}` : p.date < today ? 'MISSED' : 'planned';
-  console.log(`  ${day(p.date)} [${p.id}] ${p.workoutName} · ${status}`);
+  console.log(`  ${day(p.date)} [${p.id}] ${p.workoutName} · ${status} · ${added(p)}`);
 }
 
 console.log(`\nLogs (${logs.length}):`);
@@ -84,5 +87,5 @@ for (const l of logs.sort((a, b) => a.date.localeCompare(b.date) || a.finishedAt
 console.log(`\nMeals (${meals.length}):`);
 for (const m of meals.sort((a, b) => a.date.localeCompare(b.date) || SLOT_ORDER.indexOf(a.slot) - SLOT_ORDER.indexOf(b.slot))) {
   const status = m.actual ? `ate instead: ${m.actual}` : m.eatenAt ? 'eaten' : m.date < today ? 'not eaten' : '';
-  console.log(`  ${day(m.date)} ${m.slot} [${m.id}] ${m.text || '(photo only)'}${m.photoId ? ' 📷' : ''}${status ? ` · ${status}` : ''}`);
+  console.log(`  ${day(m.date)} ${m.slot} [${m.id}] ${m.text || '(photo only)'}${m.photoId ? ' 📷' : ''}${status ? ` · ${status}` : ''} · ${added(m)}`);
 }
