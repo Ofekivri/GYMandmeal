@@ -115,18 +115,6 @@ export function deletePlanItem(uid, id) {
   return deleteDoc(doc(db, 'trainees', uid, 'plan', id));
 }
 
-// Adds several plan items in one write (used by "copy last week").
-export async function addPlanItems(uid, items, editorUid) {
-  const batch = writeBatch(db);
-  for (const { date, workoutId, workoutName } of items) {
-    batch.set(doc(collection(db, 'trainees', uid, 'plan')), {
-      date, workoutId, workoutName,
-      doneAt: null, logId: null, createdAt: Date.now(), createdBy: editorUid,
-    });
-  }
-  await batch.commit();
-}
-
 // ─── Logs: finished workouts ────────────────────────────────────────────────
 // { workoutId, workoutName, date, startedAt, finishedAt, note, planId,
 //   unplanned, loggedBy, exercises: [{ name, sets: [{ weight, reps }] }],

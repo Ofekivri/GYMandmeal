@@ -18,7 +18,7 @@ It uses the same Firebase project as ACL-Tracker. Security rules live in that re
 - `src/App.jsx`: auth, admin detection, trainee switcher, tabs (תכנון / אימונים), and the shared workouts listener
 - `src/data.js`: all Firestore reads and writes
 - `src/dates.js`: local "YYYY-MM-DD" date helpers. Weeks start on Sunday. Never use `toISOString()` (it's UTC)
-- `src/Planner.jsx`: week strip and the combined day view (workouts and meals), missed workouts, copy last week (workouts and meals), start a workout. A finished workout with a log has no "הסרה": it's removed by deleting its log in History, so the week and History can't drift apart
+- `src/Planner.jsx`: week strip and the combined day view (workouts and meals), missed workouts, start a workout. A finished workout with a log has no "הסרה": it's removed by deleting its log in History, so the week and History can't drift apart
 - `src/Overview.jsx` + `src/weekSummary.js`: admin-only "סקירה" tab. The admin opens on their own plan, like any trainee. One card per trainee with the week's workouts done/due, meals eaten/due, and missed workouts. Reads each trainee's week once with `fetchWeek`
 - `src/WeekNav.jsx`: week arrows shared by the planner and the overview
 - `src/DayMeals.jsx`: a day's meals: add (or "הוספה + אכלתי" for today and earlier), edit, "אכלתי" / "אכלתי משהו אחר", a photo per meal, and copy the day's meals to another date
@@ -59,7 +59,7 @@ A meal photo is its own doc in `mealPhotos`, and the meal keeps only `photoId` (
 `workoutName` is copied into each plan item so it still reads right after the workout is renamed or deleted.
 
 ## Product decisions
-- Date planner: a week strip, and workouts are placed by hand. Nothing is auto-scheduled and there's no recurrence ("copy last week" instead).
+- Date planner: a week strip, and workouts are placed by hand. Nothing is auto-scheduled and there's no recurrence, and no "copy last week" (Ofek removed it, 2026-10-31: it copied one-off meals like a Friday sabich into the next week). A day's meals can still be copied to another day by hand.
 - A missed workout stays on its date as "not done", with a one-tap "move to today".
 - Logging is weight × reps per set, showing last time's values.
 - An exercise can be swapped mid-workout (a busy machine, say) until one of its sets is marked done. The swap applies to that session only: the log gets the new name and the workout template keeps the original. Target weight and note are dropped because they belonged to the original.

@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
-import { listenPlan, addPlanItem, addPlanItems, updatePlanItem, deletePlanItem, listenMeals, addMeals } from './data';
+import { listenPlan, addPlanItem, updatePlanItem, deletePlanItem, listenMeals } from './data';
 import { workoutSubtitle, workoutsCount, mealsCount } from './hebrew';
-import { sortMeals, sameMeal, mealSuggestions } from './meals';
+import { sortMeals, mealSuggestions } from './meals';
 import DayMeals from './DayMeals';
 import WeekNav from './WeekNav';
 import { todayKey, addDays, weekStart, weekDays, fromKey, dayLabel, DAY_LETTERS } from './dates';
@@ -27,7 +27,6 @@ export default function Planner({ uid, editorUid, workouts, onGoToLibrary, onSta
   const [picking, setPicking] = useState(false);
   const [movingId, setMovingId] = useState(null);
   const [error, setError] = useState('');
-  const [info, setInfo] = useState('');
 
   useEffect(() => {
     setPlan(null);
@@ -72,7 +71,6 @@ export default function Planner({ uid, editorUid, workouts, onGoToLibrary, onSta
 
   const run = async fn => {
     setError('');
-    setInfo('');
     try {
       await fn();
     } catch (err) {
@@ -86,7 +84,6 @@ export default function Planner({ uid, editorUid, workouts, onGoToLibrary, onSta
     setSelected(start <= today && today <= addDays(start, 6) ? today : start);
     setPicking(false);
     setMovingId(null);
-    setInfo('');
   };
 
   const selectDay = key => { setSelected(key); setPicking(false); setMovingId(null); };
@@ -99,29 +96,6 @@ export default function Planner({ uid, editorUid, workouts, onGoToLibrary, onSta
   const moveTo = (item, date) => run(async () => {
     await updatePlanItem(uid, item.id, { date });
     setMovingId(null);
-  });
-
-  // Copies last week's workouts and meals into the viewed week, skipping
-  // anything already there.
-  const copyLastWeek = () => run(async () => {
-    const prevDays = weekDays(addDays(viewWeek, -7));
-    const sourceWorkouts = prevDays.flatMap(d => byDate[d] || []);
-    // Text only: a meal that is only a photo has nothing to plan from.
-    const sourceMeals = prevDays.flatMap(d => mealsByDate[d] || []).filter(m => m.text);
-    if (sourceWorkouts.length + sourceMeals.length === 0) return setInfo('אין אימונים או ארוחות בשבוע הקודם להעתקה.');
-    const items = sourceWorkouts
-      .map(item => ({ date: addDays(item.date, 7), workoutId: item.workoutId, workoutName: item.workoutName }))
-      .filter(n => !(byDate[n.date] || []).some(e => e.workoutId === n.workoutId));
-    const mealCopies = sourceMeals
-      .map(m => ({ date: addDays(m.date, 7), slot: m.slot, text: m.text }))
-      .filter(n => !(mealsByDate[n.date] || []).some(e => sameMeal(e, n)));
-    if (items.length + mealCopies.length === 0) return setInfo('כל מה שהיה בשבוע הקודם כבר נמצא בשבוע הזה.');
-    await Promise.all([
-      items.length && addPlanItems(uid, items, editorUid),
-      mealCopies.length && addMeals(uid, mealCopies, editorUid),
-    ]);
-    const parts = [items.length && workoutsCount(items.length), mealCopies.length && mealsCount(mealCopies.length)].filter(Boolean);
-    setInfo(`הועתקו לשבוע הזה: ${parts.join(', ')}.`);
   });
 
   if (plan === null) return <p className="muted">טוען…</p>;
@@ -261,11 +235,6 @@ export default function Planner({ uid, editorUid, workouts, onGoToLibrary, onSta
             suggestions={suggestions}
           />
         )}
-      </div>
-
-      <div style={{ marginTop: 20 }}>
-        <button className="btn btn-block" onClick={copyLastWeek}>העתקת השבוע הקודם לשבוע הזה</button>
-        {info && <div className="info" style={{ marginTop: 8 }}>{info}</div>}
       </div>
     </div>
   );
