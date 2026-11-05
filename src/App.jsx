@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { onAuthStateChanged, signOut } from 'firebase/auth';
-import { auth } from './firebase';
+import { auth, signInHelperLoaded, wasSignedIn, rememberSignedIn } from './firebase';
 import {
   fetchIsAdmin, ensureTrainee, listenTrainee, listenTrainees, listenWorkouts, listenLogs, finishSession,
   markAfterWorkoutMessageShown,
@@ -24,6 +24,28 @@ import { withCode } from './errors';
 // With no signal the save stays queued in Firestore's on-device cache; stop
 // waiting for the server after this long and let the trainee move on.
 const OFFLINE_SAVE_WAIT_MS = 5000;
+
+// The last admin check's answer on this device (the admin's uid), so the
+// admin's extras show at once on open. It only shapes the screen: the
+// security rules decide what anyone can read.
+const ADMIN_KEY = 'gym_admin_v1';
+
+function rememberedAdmin(uid) {
+  try {
+    return localStorage.getItem(ADMIN_KEY) === uid;
+  } catch {
+    return false;
+  }
+}
+
+function rememberAdmin(uid, admin) {
+  try {
+    if (admin) localStorage.setItem(ADMIN_KEY, uid);
+    else if (localStorage.getItem(ADMIN_KEY) === uid) localStorage.removeItem(ADMIN_KEY);
+  } catch {
+    // No storage: the admin's extras just show once the check answers.
+  }
+}
 
 const ADMIN_TABS = [{ id: 'overview', label: 'סקירה' }];
 const TABS = [
@@ -104,26 +126,50 @@ export default function App() {
     return () => clearTimeout(t);
   }, [notice]);
 
-  useEffect(() => onAuthStateChanged(auth, async u => {
+  useEffect(() => onAuthStateChanged(auth, u => {
     setError('');
     setEditing(null);
     setTab('plan');
     if (!u) {
+      rememberSignedIn(false);
+      // The Google sign-in helper was skipped at startup because someone was
+      // signed in here (see firebase.js). Reload once so the login screen has
+      // it; only if the flag really cleared, so this can never loop.
+      if (!signInHelperLoaded && !wasSignedIn()) {
+        window.location.reload();
+        return;
+      }
       setUser(null);
       setIsAdmin(false);
       setActiveUid(null);
       return;
     }
-    const admin = await fetchIsAdmin(u);
-    setIsAdmin(admin);
-    // Everyone trains here, the admin included, and opens on their own plan.
-    // The admin also manages the other trainees (listener above).
-    if (admin) setTrainees(null);
+    rememberSignedIn(true);
+    // Everyone trains here, the admin included, and opens on their own plan
+    // right away. The admin check needs the server, so until it answers the
+    // admin's extras (overview, trainee switcher; listener above) follow what
+    // this device remembers.
+    const remembered = rememberedAdmin(u.uid);
+    setIsAdmin(remembered);
+    setTrainees(null);
     // Not awaited: offline, the write only resolves once it reaches the
     // server, and the cached copy is enough to go on.
     ensureTrainee(u).catch(err => console.error('[trainee] profile save failed', err));
     setActiveUid(u.uid);
     setUser(u);
+    fetchIsAdmin(u).then(admin => {
+      // null = no answer (offline, nothing cached): keep what we have. Also
+      // ignore it if they signed out in the meantime.
+      if (admin === null || auth.currentUser?.uid !== u.uid) return;
+      rememberAdmin(u.uid, admin);
+      setIsAdmin(admin);
+      if (remembered && !admin) {
+        // The device remembered wrong (the admin email changed): leave the
+        // admin-only tab and drop the trainee list's error.
+        setTab(cur => (cur === 'overview' ? 'plan' : cur));
+        setError('');
+      }
+    });
   }), []);
 
   const updateSession = next => {

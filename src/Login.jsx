@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import {
   signInWithPopup, signInWithEmailAndPassword, createUserWithEmailAndPassword,
-  sendPasswordResetEmail, updateProfile,
+  sendPasswordResetEmail, updateProfile, browserPopupRedirectResolver,
 } from 'firebase/auth';
 import { auth, googleProvider } from './firebase';
 import { ensureTrainee } from './data';
@@ -48,7 +48,9 @@ export default function Login() {
     }
   };
 
-  const google = () => run(() => signInWithPopup(auth, googleProvider));
+  // The sign-in helper is passed here because firebase.js doesn't always
+  // load it at startup.
+  const google = () => run(() => signInWithPopup(auth, googleProvider, browserPopupRedirectResolver));
 
   const submit = e => {
     e.preventDefault();

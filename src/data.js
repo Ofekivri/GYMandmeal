@@ -9,13 +9,14 @@ import { db } from './firebase';
 
 // Admin = the email stored in config/settings.adminEmail — the same source
 // the security rules' isAdmin() checks, so the UI and the rules agree.
+// null when there's no answer (offline, and it isn't cached on the device).
 export async function fetchIsAdmin(user) {
   try {
     const snap = await getDoc(doc(db, 'config', 'settings'));
     return snap.exists() && snap.data().adminEmail === user.email;
   } catch (err) {
     console.warn('[admin] settings read failed', err);
-    return false;
+    return null;
   }
 }
 
