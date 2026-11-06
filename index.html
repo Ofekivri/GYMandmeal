@@ -11,12 +11,17 @@
     <link rel="manifest" href="/manifest.webmanifest" />
     <link rel="icon" type="image/png" href="/favicon.png" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link href="https://fonts.googleapis.com/css2?family=Heebo:wght@400;500;600;700&display=swap" rel="stylesheet" />
+    <!-- Every open checks the sign-in with Google and then reads Firestore, so
+         connect while the code loads. Auth's requests carry no cookies
+         (crossorigin); Firestore's do. -->
+    <link rel="preconnect" href="https://securetoken.googleapis.com" crossorigin />
+    <link rel="preconnect" href="https://identitytoolkit.googleapis.com" crossorigin />
+    <link rel="preconnect" href="https://firestore.googleapis.com" />
     <title>אימונים</title>
   </head>
   <body>
-    <div id="root"></div>
+    <!-- Shown until the app starts; the same as App's own loading screen. -->
+    <div id="root"><div class="center muted">טוען…</div></div>
     <script type="module" src="/src/main.jsx"></script>
   </body>
 </html>

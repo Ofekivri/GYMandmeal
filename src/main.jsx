@@ -1,5 +1,8 @@
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
+// Heebo ships with the app (not from Google Fonts), so it never holds up the
+// start on a weak signal and works offline. Only the subsets in use load.
+import '@fontsource-variable/heebo';
 import './index.css';
 import App from './App.jsx';
 import { firebaseConfigured } from './firebase';

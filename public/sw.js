@@ -4,7 +4,7 @@
 //   copy when offline, or when the network hasn't answered in NETWORK_WAIT_MS
 //   (a weak signal), and the late network copy is cached for next time
 // - /assets/*: Vite hashes these filenames, so a cached copy is never stale
-// Everything else (Firebase, Google Fonts) passes straight through.
+// Everything else (Firebase) passes straight through.
 const CACHE = 'gym-shell-v1';
 const SHELL = '/index.html';
 const NETWORK_WAIT_MS = 3000;
@@ -17,11 +17,18 @@ const assetsIn = html => [...html.matchAll(/\/assets\/[^"'\s)]+/g)].map(m => m[0
 async function cacheShell(response) {
   const cache = await caches.open(CACHE);
   const html = await response.clone().text();
-  const keep = new Set(assetsIn(html));
-  await Promise.all([...keep].map(async path => {
+  const files = [...new Set(assetsIn(html))];
+  await Promise.all(files.map(async path => {
     if (!(await cache.match(path))) await cache.add(path);
   }));
   await cache.put(SHELL, response);
+  // The font files are named in the CSS, not the page. They're cached the
+  // first time they're shown (only the subsets in use), and kept for as long
+  // as the CSS names them.
+  const keep = new Set(files);
+  for (const css of files.filter(path => path.endsWith('.css'))) {
+    for (const path of assetsIn(await (await cache.match(css)).text())) keep.add(path);
+  }
   // Drop assets from older deploys.
   for (const req of await cache.keys()) {
     const path = new URL(req.url).pathname;

@@ -9,7 +9,7 @@
   --danger: #c62828;
   --danger-bg: #fdecea;
   --radius: 12px;
-  font-family: 'Heebo', system-ui, -apple-system, sans-serif;
+  font-family: 'Heebo Variable', system-ui, -apple-system, sans-serif;
   color: var(--text);
   background: var(--bg);
   -webkit-text-size-adjust: 100%;
